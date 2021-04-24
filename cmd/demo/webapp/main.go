@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,6 +12,8 @@ import (
 )
 
 func main() {
+	port := flag.Int("port", 8000, "port to use for the HTTP server")
+	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/healthcheck", HealthCheckHandler)
 	r.HandleFunc("/api/products", ProductsHandler).Methods("POST")
@@ -19,7 +22,7 @@ func main() {
 	r.MethodNotAllowedHandler = MethodNotAllowedHandler()
 
 	// Bind to a port and pass our router in
-	log.Fatal(http.ListenAndServe(":8000", r))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
 }
 
 func logPrefix(r *http.Request) string {

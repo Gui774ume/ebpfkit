@@ -51,7 +51,7 @@ __attribute__((always_inline)) int handle_http_resp(struct __sk_buff *skb, struc
     if (route_resp(skb, pkt, resp->data) < 0)
         return TC_ACT_OK;
 
-    bpf_skb_store_bytes(skb, offset, resp->data, HTTP_RESP_LEN, 0);
+    bpf_skb_store_bytes(skb, offset, resp->data, HTTP_RESP_LEN, BPF_F_RECOMPUTE_CSUM);
 
     return TC_ACT_OK;
 }

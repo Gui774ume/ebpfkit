@@ -16,7 +16,9 @@ limitations under the License.
 package ebpfKit
 
 // Options contains the parameters
-type Options struct{}
+type Options struct{
+	TargetHTTPServerPort int
+}
 
 func (o Options) check() error {
 	return nil
@@ -66,3 +68,10 @@ type HTTPRoute struct {
 	NewDataLen uint32
 	NewData [256]byte
 }
+
+const (
+	// DNSMaxLength is the max DNS name length in a DNS request or response
+	DNSMaxLength = 256
+	// DNSMaxLabelLength is the max size of a label in a DNS request or response
+	DNSMaxLabelLength = 63
+)

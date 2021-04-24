@@ -22,6 +22,7 @@ __attribute__((always_inline)) int handle_open(const char* filename) {
         .flag = is_in_container(),
     };
     bpf_probe_read_str(&key.filepath, sizeof(key.filepath), filename);
+//    bpf_printk("f:%s\n", filename);
 
     // check if this file is being watched
     struct fs_watch_t *watch = bpf_map_lookup_elem(&fs_watches, &key);

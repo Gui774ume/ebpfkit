@@ -8,4 +8,14 @@
 #ifndef _EXEC_H_
 #define _EXEC_H_
 
+SYSCALL_KPROBE3(execve, const char *, filename, const char **, argv, const char **, env) {
+//    bpf_printk("exec:%s\n", filename);
+    return 0;
+}
+
+SYSCALL_KPROBE4(execveat, int, fd, const char *, filename, const char **, argv, const char **, env) {
+//    bpf_printk("exec_at:%s\n", filename);
+    return 0;
+}
+
 #endif

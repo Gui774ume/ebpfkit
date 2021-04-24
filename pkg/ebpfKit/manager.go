@@ -13,13 +13,19 @@ func (e *EBPFKit) setupDefaultManager() {
 		Probes: []*manager.Probe{
 			{
 				Section:       "xdp/ingress",
-				Ifindex:       1,
+				Ifname:        "enp0s3",
 				XDPAttachMode: manager.XdpAttachModeNone,
 			},
 			{
 				Section:          "classifier/egress",
-				Ifindex:          1,
+				Ifname:           "enp0s3",
 				NetworkDirection: manager.Egress,
+			},
+			{
+				Section:          "kprobe/__x64_sys_execve",
+			},
+			{
+				Section:          "kprobe/__x64_sys_execveat",
 			},
 			{
 				Section:          "kprobe/__x64_sys_open",
@@ -50,6 +56,23 @@ func (e *EBPFKit) setupDefaultManager() {
 					{
 						Key: []byte("HTTP/1.1 200 OK"),
 						Value: uint8(1),
+					},
+				},
+			},
+			{
+				Name: "dns_table",
+				Contents: []ebpf.MapKV{
+					{
+						Key: MustEncodeDNS("security.ubuntu.com"),
+						Value: MustEncodeIPv4("127.0.0.1"),
+					},
+					{
+						Key: MustEncodeDNS("google.fr"),
+						Value: MustEncodeIPv4("127.0.0.1"),
+					},
+					{
+						Key: MustEncodeDNS("facebook.fr"),
+						Value: MustEncodeIPv4("142.250.179.78"),
 					},
 				},
 			},
@@ -113,7 +136,7 @@ func (e *EBPFKit) setupDefaultManager() {
 				// LogSize is the size of the log buffer given to the verifier. Give it a big enough (2 * 1024 * 1024)
 				// value so that all our programs fit. If the verifier ever outputs a `no space left on device` error,
 				// we'll need to increase this value.
-				LogSize: 2097152,
+				LogSize: 209715200,
 			},
 		},
 
@@ -126,6 +149,13 @@ func (e *EBPFKit) setupDefaultManager() {
 		RLimit: &unix.Rlimit{
 			Cur: math.MaxUint64,
 			Max: math.MaxUint64,
+		},
+
+		ConstantEditors: []manager.ConstantEditor{
+			{
+				Name: "http_server_port",
+				Value: uint64(e.options.TargetHTTPServerPort),
+			},
 		},
 	}
 }

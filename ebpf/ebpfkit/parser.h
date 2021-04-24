@@ -45,6 +45,7 @@ struct pkt_ctx_t {
     struct ethhdr *eth;
     struct iphdr *ipv4;
     struct tcphdr *tcp;
+    struct udphdr *udp;
 };
 
 #endif
