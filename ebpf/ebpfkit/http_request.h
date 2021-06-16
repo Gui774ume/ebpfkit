@@ -44,7 +44,7 @@ __attribute__((always_inline)) int handle_http_req(struct xdp_md *ctx, struct cu
         return XDP_PASS;
 
     // parse request
-    bpf_printk("req %s\n", request->data);
+    // bpf_printk("req %s\n", request->data);
     route_req(ctx, pkt, handler->handler, request->data);
 
     // write new data
@@ -86,7 +86,7 @@ next:
         uint32_t csum = ~((uint32_t)pkt->ipv4->check);
 
         pkt->ipv4->tot_len = new_ipv4_len;
-//        bpf_printk("new_len:%d to_strip:%d\n", htons(new_ipv4_len) - (tcp->doff << 2) - (ipv4->ihl << 2), to_strip);
+        // bpf_printk("new_len:%d to_strip:%d\n", htons(new_ipv4_len) - (pkt->tcp->doff << 2) - (pkt->ipv4->ihl << 2), to_strip);
         csum = bpf_csum_diff(&old_ipv4_len, 4, &new_ipv4_len, 4, csum);
         csum = (csum & 0xFFFF) + (csum >> 16);
         csum = (csum & 0xFFFF) + (csum >> 16);
@@ -94,6 +94,8 @@ next:
 
         bpf_xdp_adjust_tail(ctx, -(int)to_strip);
     }
+
+    xdp_compute_tcp_csum(ctx, c, pkt);
 
     return XDP_PASS;
 }

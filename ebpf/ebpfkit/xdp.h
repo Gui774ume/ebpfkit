@@ -29,8 +29,8 @@ int xdp_ingress(struct xdp_md *ctx) {
             if (!(pkt.tcp = parse_tcphdr(&c)) || pkt.tcp->dest != htons(load_http_server_port()))
                 return XDP_PASS;
 
-             bpf_printk("IN - SEQ:%x ACK_NO:%x ACK:%d\n", htons(pkt.tcp->seq >> 16) + (htons(pkt.tcp->seq) << 16), htons(pkt.tcp->ack_seq >> 16) + (htons(pkt.tcp->ack_seq) << 16), pkt.tcp->ack);
-             bpf_printk("      len: %d\n", htons(pkt.ipv4->tot_len) - (pkt.tcp->doff << 2) - sizeof(struct iphdr));
+            // bpf_printk("IN - SEQ:%x ACK_NO:%x ACK:%d\n", htons(pkt.tcp->seq >> 16) + (htons(pkt.tcp->seq) << 16), htons(pkt.tcp->ack_seq >> 16) + (htons(pkt.tcp->ack_seq) << 16), pkt.tcp->ack);
+            // bpf_printk("      len: %d\n", htons(pkt.ipv4->tot_len) - (pkt.tcp->doff << 2) - sizeof(struct iphdr));
 
             // adjust cursor with variable tcp options
             c.pos += (pkt.tcp->doff << 2) - sizeof(struct tcphdr);

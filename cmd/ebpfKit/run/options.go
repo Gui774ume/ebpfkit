@@ -20,13 +20,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Gui774ume/ebpfkit/pkg/ebpfKit"
+	"github.com/Gui774ume/ebpfkit/pkg/ebpfkit"
 )
 
 // CLIOptions are the command line options of ssh-probe
 type CLIOptions struct {
 	LogLevel logrus.Level
-	EBPFKit  ebpfKit.Options
+	EBPFKit  ebpfkit.Options
 }
 
 // LogLevelSanitizer is a log level sanitizer that ensures that the provided log level exists

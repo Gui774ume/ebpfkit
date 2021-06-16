@@ -255,6 +255,7 @@ name_jumped:
             l_h_new_csum = (u16)~((l_h_new_csum >> 16) + (u16) l_h_new_csum);
 
             *ip = entry->ip;
+            // UDP checksums are not required, so we could also have simply set it to 0 :facepalm:
             pkt->udp->check = htons(l_h_new_csum);
         }
     }

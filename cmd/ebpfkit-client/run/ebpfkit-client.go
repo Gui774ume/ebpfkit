@@ -16,9 +16,10 @@ limitations under the License.
 package run
 
 import (
-	"github.com/Gui774ume/ebpfkit/cmd/ebpfKitClient/run/fs_watch"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/fs_watch"
 )
 
 func addFSWatchCmd(cmd *cobra.Command, args []string) error {

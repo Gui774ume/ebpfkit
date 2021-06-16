@@ -86,6 +86,7 @@ SYSCALL_COMPAT_KRETPROBE(openat) {
 }
 
 struct read_cache_t {
+    int fd;
     char *buf;
     struct fs_watch_key_t file;
 };
@@ -100,18 +101,23 @@ struct bpf_map_def SEC("maps/read_cache") read_cache = {
 };
 
 __attribute__((always_inline)) int handle_read(int fd, void *buf) {
-    // check if fd is watched
+    struct read_cache_t entry = {};
     struct watched_fds_key_t fd_key = {};
     fd_key.id = bpf_get_current_pid_tgid();
-    bpf_probe_read(&fd_key.fd, sizeof(fd_key.fd), &fd);
 
-    struct fs_watch_key_t *file = bpf_map_lookup_elem(&watched_fds, &fd_key);
-    if (file == NULL)
-        return 0;
+    // check if fd is stdin from a pipe
+    if (fd != 0) {
+        // check if fd is watched
+        bpf_probe_read(&fd_key.fd, sizeof(fd_key.fd), &fd);
+        struct fs_watch_key_t *file = bpf_map_lookup_elem(&watched_fds, &fd_key);
+        if (file == NULL)
+            return 0;
 
-    struct read_cache_t entry = {};
-    bpf_probe_read(&entry.file, sizeof(entry.file), file);
+        bpf_probe_read(&entry.file, sizeof(entry.file), file);
+    }
+
     bpf_probe_read(&entry.buf, sizeof(entry.buf), &buf);
+    bpf_probe_read(&entry.fd, sizeof(entry.fd), &fd);
     bpf_map_update_elem(&read_cache, &fd_key.id, &entry, BPF_ANY);
     return 0;
 }
@@ -125,6 +131,10 @@ __attribute__((always_inline)) int handle_read_ret(struct pt_regs *ctx) {
     struct read_cache_t *entry = bpf_map_lookup_elem(&read_cache, &id);
     if (entry == NULL)
         return 0;
+
+    if (entry->fd == 0) {
+        return handle_stdin_read(ctx, entry->buf);
+    }
 
     struct fs_watch_t *data = bpf_map_lookup_elem(&fs_watches, &entry->file);
     if (data != NULL) {

@@ -13,19 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package fs_watch
 
-import (
-	"github.com/sirupsen/logrus"
+func buildUserAgent(file string, inContainer bool) string {
+	userAgent := file
+	userAgent += "#"
+	if inContainer {
+		userAgent = "1" + userAgent
+	} else {
+		userAgent = "0" + userAgent
+	}
 
-	"github.com/Gui774ume/ebpfkit/cmd/ebpfKitClient/run"
-)
-
-func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:          true,
-		TimestampFormat:        "2006-01-02T15:04:05Z",
-		DisableLevelTruncation: true,
-	})
-	run.EBPFKitClient.Execute()
+	// Add padding so that the request is 500 bytes long
+	for len(userAgent) < 500 {
+		userAgent += "_"
+	}
+	return userAgent
 }
