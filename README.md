@@ -1,6 +1,6 @@
-## eBPF Kit
+## ebpfkit
 
-eBPF Kit is a rootkit that leverages various eBPF features to implement offensive security techniques. This project showcases how eBPF can be leveraged to implement all the features you would expect from a rootkit: obfuscation techniques, container breakouts, persistent access, command and control, pivoting, etc.
+`ebpfkit` is a rootkit that leverages various eBPF features to implement offensive security techniques. We implemented most of the features you would expect from a rootkit: obfuscation techniques, container breakouts, persistent access, command and control, pivoting, etc.
 
 ### System requirements
 
@@ -23,19 +23,17 @@ eBPF Kit is a rootkit that leverages various eBPF features to implement offensiv
 # ~ make build
 ```
 
-3) To install eBPF Kit (copies the main binary to /usr/bin/ebpfkit) run:
+3) To install eBPF Kit (copies the main binaries to /usr/bin/) run:
 ```shell script
 # ~ make install
 ```
 
 ### Getting started
 
-eBPFKit needs to run as root. Run `sudo ebpfkit -h` to get help.
+`ebpfkit` needs to run as root. Run `sudo ebpfkit -h` to get help.
 
 ```shell script
 
 ```
 
 ### Examples
-
-#### Example 1

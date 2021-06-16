@@ -23,10 +23,10 @@ build-ebpf:
 
 build:
 	mkdir -p bin/
-	go build -o bin/ ./...
+	go build -o bin/ ./cmd/./...
 
 run:
-	sudo ./bin/ebpfKit
+	sudo ./bin/ebpfkit
 
 install:
-	sudo cp ./bin/ebpfKit /usr/bin/
+	sudo cp ./bin/ebpfkit /usr/bin/

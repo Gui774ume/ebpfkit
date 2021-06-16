@@ -21,7 +21,7 @@ import (
 
 // EBPFKitClient represents the base command of the ebpfKitClient
 var EBPFKitClient = &cobra.Command{
-	Use:  "ebpfKitClient",
+	Use: "ebpfkit-client",
 }
 
 var cmdFSWatch = &cobra.Command{
@@ -29,27 +29,27 @@ var cmdFSWatch = &cobra.Command{
 }
 
 var cmdAddFSWatch = &cobra.Command{
-	Use: "add [path of file]",
+	Use:   "add [path of file]",
 	Short: "add a filesystem watch",
-	Long: "add is used to add a filesystem watch on the target system",
-	RunE: addFSWatchCmd,
-	Args: cobra.MinimumNArgs(1),
+	Long:  "add is used to add a filesystem watch on the target system",
+	RunE:  addFSWatchCmd,
+	Args:  cobra.MinimumNArgs(1),
 }
 
 var cmdDeleteFSWatch = &cobra.Command{
-	Use: "delete [path of file]",
+	Use:   "delete [path of file]",
 	Short: "delete a filesystem watch",
-	Long: "delete is used to remove a filesystem watch on the target system",
-	RunE: deleteFSWatchCmd,
-	Args: cobra.MinimumNArgs(1),
+	Long:  "delete is used to remove a filesystem watch on the target system",
+	RunE:  deleteFSWatchCmd,
+	Args:  cobra.MinimumNArgs(1),
 }
 
 var cmdGetFSWatch = &cobra.Command{
-	Use: "get [path of file]",
+	Use:   "get [path of file]",
 	Short: "get a filesystem watch",
-	Long: "get is used to dump a watched file from the target system",
-	RunE: getFSWatchCmd,
-	Args: cobra.MinimumNArgs(1),
+	Long:  "get is used to dump a watched file from the target system",
+	RunE:  getFSWatchCmd,
+	Args:  cobra.MinimumNArgs(1),
 }
 
 var options CLIOptions
@@ -77,7 +77,7 @@ func init() {
 		&options.Active,
 		"active",
 		false,
-		"defines if EBPFKit should passively wait for the file to be opened, or actively make a process open it")
+		"defines if ebpfkit should passively wait for the file to be opened, or actively make a process open it")
 	cmdFSWatch.PersistentFlags().StringVarP(
 		&options.Output,
 		"output",

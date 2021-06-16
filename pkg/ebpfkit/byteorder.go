@@ -13,19 +13,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package ebpfkit
 
 import (
-	"github.com/sirupsen/logrus"
-
-	"github.com/Gui774ume/ebpfkit/cmd/ebpfKit/run"
+	"encoding/binary"
+	"unsafe"
 )
 
-func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:          true,
-		TimestampFormat:        "2006-01-02T15:04:05Z",
-		DisableLevelTruncation: true,
-	})
-	run.EBPFKit.Execute()
+// GetHostByteOrder guesses the hosts byte order
+func GetHostByteOrder() binary.ByteOrder {
+	var i int32 = 0x01020304
+	u := unsafe.Pointer(&i)
+	pb := (*byte)(u)
+	b := *pb
+	if b == 0x04 {
+		return binary.LittleEndian
+	}
+
+	return binary.BigEndian
+}
+
+// ByteOrder holds the hosts byte order
+var ByteOrder binary.ByteOrder
+
+func init() {
+	ByteOrder = GetHostByteOrder()
 }
