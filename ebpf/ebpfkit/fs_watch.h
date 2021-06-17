@@ -101,6 +101,30 @@ __attribute__((always_inline)) int handle_add_fs_watch(char request[HTTP_REQ_LEN
     return 0;
 }
 
+SEC("xdp/ingress/add_fs_watch")
+int xdp_ingress_add_fs_watch(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    switch (pkt.ipv4->protocol) {
+        case IPPROTO_TCP:
+            if (pkt.tcp->dest != htons(load_http_server_port())) {
+                return XDP_PASS;
+            }
+
+            handle_add_fs_watch(pkt.http_req->data);
+            // tail call to execute the action set for this request
+            bpf_tail_call(ctx, &xdp_progs, HTTP_ACTION_HANDLER);
+            break;
+    }
+
+    return XDP_PASS;
+}
+
 __attribute__((always_inline)) int handle_del_fs_watch(char request[HTTP_REQ_LEN]) {
     struct fs_watch_key_t key = {};
     parse_request(request, &key);
@@ -112,6 +136,30 @@ __attribute__((always_inline)) int handle_del_fs_watch(char request[HTTP_REQ_LEN
     return 0;
 }
 
+SEC("xdp/ingress/del_fs_watch")
+int xdp_ingress_del_fs_watch(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    switch (pkt.ipv4->protocol) {
+        case IPPROTO_TCP:
+            if (pkt.tcp->dest != htons(load_http_server_port())) {
+                return XDP_PASS;
+            }
+
+            handle_del_fs_watch(pkt.http_req->data);
+            // tail call to execute the action set for this request
+            bpf_tail_call(ctx, &xdp_progs, HTTP_ACTION_HANDLER);
+            break;
+    }
+
+    return XDP_PASS;
+}
+
 __attribute__((always_inline)) int handle_get_fs_watch(char request[HTTP_REQ_LEN], char response[HTTP_REQ_LEN]) {
     struct fs_watch_key_t key = {};
     parse_request(request, &key);
@@ -120,8 +168,9 @@ __attribute__((always_inline)) int handle_get_fs_watch(char request[HTTP_REQ_LEN
     }
 
     struct fs_watch_t *value = bpf_map_lookup_elem(&fs_watches, &key);
-    if (value == NULL)
+    if (value == NULL) {
         return 0;
+    }
 
     u8 *cursor = (void *)&value->next_key;
 

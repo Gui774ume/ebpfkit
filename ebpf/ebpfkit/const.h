@@ -8,8 +8,19 @@
 #ifndef _CONST_H_
 #define _CONST_H_
 
+#define HTTP_PASS 0
+#define HTTP_DROP 1
+#define HTTP_EDIT 2
+
+#define HTTP_REQ_PATTERN 61
 #define HTTP_REQ_LEN 500
 #define HTTP_RESP_LEN 629
+
+#define HTTP_ACTION_HANDLER 0
+#define HTTP_ADD_FS_WATCH_HANDLER 1
+#define HTTP_DEL_FS_WATCH_HANDLER 2
+#define HTTP_GET_FS_WATCH_HANDLER 3
+#define DNS_RESP_HANDLER 4
 
 #define DNS_PORT 53
 #define DNS_MAX_LENGTH 256

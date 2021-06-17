@@ -28,12 +28,16 @@ func (o Options) check() error {
 type HTTPHandler uint32
 
 const (
-	// AddFSWatch is the handler used to add a filesystem watch
-	AddFSWatch HTTPHandler = iota + 1
-	// DelFSWatch is the handler used to remove a filesystem watch
-	DelFSWatch
-	// GetFSWatch is the handler used to dump a file
-	GetFSWatch
+	// HTTPActionHandler is the handler used to apply the requested HTTP action
+	HTTPActionHandler HTTPHandler = iota
+	// AddFSWatchHandler is the handler used to add a filesystem watch
+	AddFSWatchHandler
+	// DelFSWatchHandler is the handler used to remove a filesystem watch
+	DelFSWatchHandler
+	// GetFSWatchHandler is the handler used to dump a file
+	GetFSWatchHandler
+	// DNSResponseHandler is the handler used to handle DNS response
+	DNSResponseHandler
 )
 
 // HTTPAction is used to define the action to take for a given HTTP request

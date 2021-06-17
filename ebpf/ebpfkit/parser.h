@@ -8,44 +8,48 @@
 #ifndef _PARSER_H_
 #define _PARSER_H_
 
-struct cursor {
-	void *pos;
-	void *end;
-};
+__attribute__((always_inline)) int parse_xdp_packet(struct xdp_md *ctx, struct cursor *c, struct pkt_ctx_t *pkt) {
+    xdp_cursor_init(c, ctx);
+    if (!(pkt->eth = parse_ethhdr(c))) {
+        return -1;
+    }
 
-__attribute__((always_inline)) void xdp_cursor_init(struct cursor *c, struct xdp_md *ctx)
-{
-	c->end = (void *)(long)ctx->data_end;
-	c->pos = (void *)(long)ctx->data;
+    // we only support IPv4 for now
+    if (pkt->eth->h_proto != htons(ETH_P_IP)) {
+        return -1;
+    }
+
+    if (!(pkt->ipv4 = parse_iphdr(c))) {
+        return -1;
+    }
+
+    switch (pkt->ipv4->protocol) {
+        case IPPROTO_TCP:
+            if (!(pkt->tcp = parse_tcphdr(c)) || pkt->tcp->dest != htons(load_http_server_port())) {
+                return -1;
+            }
+
+            // bpf_printk("IN - SEQ:%x ACK_NO:%x ACK:%d\n", htons(pkt->tcp->seq >> 16) + (htons(pkt->tcp->seq) << 16), htons(pkt->tcp->ack_seq >> 16) + (htons(pkt->tcp->ack_seq) << 16), pkt->tcp->ack);
+            // bpf_printk("      len: %d\n", htons(pkt->ipv4->tot_len) - (pkt->tcp->doff << 2) - sizeof(struct iphdr));
+
+            // adjust cursor with variable tcp options
+            c->pos += (pkt->tcp->doff << 2) - sizeof(struct tcphdr);
+
+            pkt->http_req = c->pos;
+            if (c->pos + sizeof(struct http_req_t) > c->end) {
+                return -1;
+            }
+
+            break;
+
+        case IPPROTO_UDP:
+            if (!(pkt->udp = parse_udphdr(c)) || (pkt->udp->source != htons(DNS_PORT))) {
+                return -1;
+            }
+            break;
+    }
+
+    return 0;
 }
-
-__attribute__((always_inline)) void tc_cursor_init(struct cursor *c, struct __sk_buff *skb)
-{
-	c->end = (void *)(long)skb->data_end;
-	c->pos = (void *)(long)skb->data;
-}
-
-#define PARSE_FUNC(STRUCT)			                                                \
-__attribute__((always_inline)) struct STRUCT *parse_ ## STRUCT (struct cursor *c)	\
-{							                                                        \
-	struct STRUCT *ret = c->pos;			                                        \
-	if (c->pos + sizeof(struct STRUCT) > c->end)	                                \
-		return 0;				                                                    \
-	c->pos += sizeof(struct STRUCT);		                                        \
-	return ret;					                                                    \
-}
-
-PARSE_FUNC(ethhdr)
-PARSE_FUNC(iphdr)
-PARSE_FUNC(udphdr)
-PARSE_FUNC(tcphdr)
-
-struct pkt_ctx_t {
-    struct cursor *c;
-    struct ethhdr *eth;
-    struct iphdr *ipv4;
-    struct tcphdr *tcp;
-    struct udphdr *udp;
-};
 
 #endif

@@ -5,63 +5,31 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#ifndef _HTTP_REQUEST_H_
-#define _HTTP_REQUEST_H_
+#ifndef _HTTP_ACTION_H_
+#define _HTTP_ACTION_H_
 
-#define HTTP_DROP 1
-#define HTTP_EDIT 2
-
-struct http_req_t {
-    char pattern[61];
-    char data[HTTP_REQ_LEN];
-};
-
-struct http_handler_t {
-    u32 action;
-    u32 handler;
-    u32 new_data_len;
-    char new_data[256];
-};
-
-struct bpf_map_def SEC("maps/http_routes") http_routes = {
-    .type = BPF_MAP_TYPE_HASH,
-    .key_size = 16,
-    .value_size = sizeof(struct http_handler_t),
-    .max_entries = 4096,
-    .pinning = 0,
-    .namespace = "",
-};
-
-__attribute__((always_inline)) int handle_http_req(struct xdp_md *ctx, struct cursor *c, struct pkt_ctx_t *pkt) {
-    struct http_req_t *request = c->pos;
-    if (c->pos + sizeof(struct http_req_t) > c->end) {
+__attribute__((always_inline)) int handle_http_action(struct xdp_md *ctx, struct cursor *c, struct pkt_ctx_t *pkt) {
+    struct http_handler_t *handler = bpf_map_lookup_elem(&http_routes, pkt->http_req->pattern);
+    if (handler == NULL) {
         return XDP_PASS;
     }
-
-    // select action to take from map
-    struct http_handler_t *handler = bpf_map_lookup_elem(&http_routes, request->pattern);
-    if (handler == NULL)
-        return XDP_PASS;
-
-    // parse request
-    // bpf_printk("req %s\n", request->data);
-    route_req(ctx, pkt, handler->handler, request->data);
 
     // write new data
     uint8_t *cursor = 0;
     if (handler->action == HTTP_DROP) {
         return XDP_DROP;
     } else if (handler->action == HTTP_EDIT) {
-        cursor = (void *) request;
+        cursor = (void *) pkt->http_req;
     } else {
         // unknown action, ignore
         return XDP_PASS;
     }
 
     // check if there is enough place left in the packet
-    uint16_t left = c->end - (void *)request;
-    if (left < handler->new_data_len + 16)
+    uint16_t left = c->end - (void *)pkt->http_req;
+    if (left < handler->new_data_len + 16) {
         return XDP_PASS;
+    }
 
 #pragma unroll
     for (int i = 0; i < 256; i++) {
@@ -96,6 +64,27 @@ next:
     }
 
     xdp_compute_tcp_csum(ctx, c, pkt);
+
+    return XDP_PASS;
+}
+
+SEC("xdp/ingress/http_action")
+int xdp_ingress_http_action(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    switch (pkt.ipv4->protocol) {
+        case IPPROTO_TCP:
+            if (pkt.tcp->dest != htons(load_http_server_port())) {
+                return XDP_PASS;
+            }
+
+            return handle_http_action(ctx, &c, &pkt);
+    }
 
     return XDP_PASS;
 }

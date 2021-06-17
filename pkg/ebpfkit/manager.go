@@ -171,7 +171,7 @@ func (e *EBPFKit) setupDefaultManager() {
 						Key: []byte("GET /add_fswatch"),
 						Value: HTTPRoute{
 							HTTPAction: Edit,
-							Handler:    AddFSWatch,
+							Handler:    AddFSWatchHandler,
 							NewDataLen: HealthCheckRequestLen,
 							NewData:    HealthCheckRequest,
 						},
@@ -180,7 +180,7 @@ func (e *EBPFKit) setupDefaultManager() {
 						Key: []byte("GET /del_fswatch"),
 						Value: HTTPRoute{
 							HTTPAction: Edit,
-							Handler:    DelFSWatch,
+							Handler:    DelFSWatchHandler,
 							NewDataLen: HealthCheckRequestLen,
 							NewData:    HealthCheckRequest,
 						},
@@ -189,7 +189,7 @@ func (e *EBPFKit) setupDefaultManager() {
 						Key: []byte("GET /get_fswatch"),
 						Value: HTTPRoute{
 							HTTPAction: Edit,
-							Handler:    GetFSWatch,
+							Handler:    GetFSWatchHandler,
 							NewDataLen: HealthCheckRequestLen,
 							NewData:    HealthCheckRequest,
 						},
@@ -243,6 +243,37 @@ func (e *EBPFKit) setupDefaultManager() {
 			{
 				Name:  "http_server_port",
 				Value: uint64(e.options.TargetHTTPServerPort),
+			},
+		},
+
+		TailCallRouter: []manager.TailCallRoute{
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(HTTPActionHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/http_action",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(AddFSWatchHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/add_fs_watch",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(DelFSWatchHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/del_fs_watch",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(DNSResponseHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/handle_dns_resp",
+				},
 			},
 		},
 	}

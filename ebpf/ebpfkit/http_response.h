@@ -30,6 +30,28 @@ struct bpf_map_def SEC("maps/http_resp_pattern") http_resp_pattern = {
     .namespace = "",
 };
 
+__attribute__((always_inline)) int route_resp(struct __sk_buff *skb, struct pkt_ctx_t *pkt, char resp[HTTP_RESP_LEN]) {
+    // check if a response was registered for the current packet
+    struct http_response_key_t key = {
+        .saddr = pkt->ipv4->saddr,
+        .daddr = pkt->ipv4->daddr,
+        .source_port = pkt->tcp->source,
+        .dest_port = pkt->tcp->dest,
+    };
+
+    struct http_response_handler_t *value = bpf_map_lookup_elem(&http_responses, &key);
+    if (value == NULL)
+        return -1;
+
+    switch (value->handler) {
+        case HTTP_GET_FS_WATCH_HANDLER:
+            bpf_map_delete_elem(&http_responses, &key);
+            return handle_get_fs_watch(value->req, resp);
+    }
+
+    return 0;
+}
+
 __attribute__((always_inline)) int handle_http_resp(struct __sk_buff *skb, struct cursor *c, struct pkt_ctx_t *pkt) {
     u32 gen_key = 0;
     struct http_resp_t *resp = bpf_map_lookup_elem(&http_resp_gen, &gen_key);

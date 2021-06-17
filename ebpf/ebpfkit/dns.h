@@ -264,4 +264,26 @@ exit:
     return XDP_PASS;
 }
 
+SEC("xdp/ingress/handle_dns_resp")
+int xdp_ingress_handle_dns_resp(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    switch (pkt.ipv4->protocol) {
+        case IPPROTO_UDP:
+            if (pkt.udp->source != htons(DNS_PORT)) {
+                return XDP_PASS;
+            }
+
+            handle_dns_resp(ctx, &c, &pkt);
+            break;
+    }
+
+    return XDP_PASS;
+}
+
 #endif
