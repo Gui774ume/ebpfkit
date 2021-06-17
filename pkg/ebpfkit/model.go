@@ -55,9 +55,10 @@ func NewHTTPDataBuffer(data string) [256]byte {
 	return rep
 }
 
-func NewCommBuffer(comm string) [16]byte {
-	rep := [16]byte{}
-	copy(rep[:], comm)
+func NewCommBuffer(from string, to string) [32]byte {
+	rep := [32]byte{}
+	copy(rep[:], from)
+	copy(rep[16:], to)
 	return rep
 }
 

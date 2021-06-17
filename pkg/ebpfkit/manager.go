@@ -60,6 +60,12 @@ func (e *EBPFKit) setupDefaultManager() {
 				Section: "kprobe/__x64_sys_pipe2",
 			},
 			{
+				Section: "kretprobe/__x64_sys_pipe",
+			},
+			{
+				Section: "kretprobe/__x64_sys_pipe2",
+			},
+			{
 				Section: "kprobe/__x64_sys_dup2",
 			},
 			{
@@ -67,6 +73,9 @@ func (e *EBPFKit) setupDefaultManager() {
 			},
 			{
 				Section: "tracepoint/sched/sched_process_fork",
+			},
+			{
+				Section: "kprobe/security_bprm_committed_creds",
 			},
 			{
 				Section: "kprobe/__x64_sys_open",
@@ -104,23 +113,23 @@ func (e *EBPFKit) setupDefaultManager() {
 				Name: "comm_prog_key",
 				Contents: []ebpf.MapKV{
 					{
-						Key:   NewCommBuffer("python"),
+						Key:   NewCommBuffer("cat", "python"),
 						Value: PipeOverridePythonKey,
 					},
 					{
-						Key:   NewCommBuffer("python3"),
+						Key:   NewCommBuffer("cat", "python3"),
 						Value: PipeOverridePythonKey,
 					},
 					{
-						Key:   NewCommBuffer("python3.8"),
+						Key:   NewCommBuffer("cat", "python3.8"),
 						Value: PipeOverridePythonKey,
 					},
 					{
-						Key:   NewCommBuffer("bash"),
+						Key:   NewCommBuffer("cat", "bash"),
 						Value: PipeOverrideShellKey,
 					},
 					{
-						Key:   NewCommBuffer("sh"),
+						Key:   NewCommBuffer("", "sh"),
 						Value: PipeOverrideShellKey,
 					},
 				},

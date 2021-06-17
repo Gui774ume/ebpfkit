@@ -34,7 +34,6 @@ func SendAddFSWatchRequest(target string, file string, inContainer bool, active 
 	}
 
 	userAgent := file
-	userAgent += "#"
 	var flag int
 	if inContainer {
 		flag += 1
@@ -42,7 +41,7 @@ func SendAddFSWatchRequest(target string, file string, inContainer bool, active 
 	if active {
 		flag += 2
 	}
-	userAgent = fmt.Sprintf("%d%s", flag, userAgent)
+	userAgent = fmt.Sprintf("%d%s#", flag, userAgent)
 
 	// Add padding so that the request is 500 bytes long
 	for len(userAgent) < 500 {
