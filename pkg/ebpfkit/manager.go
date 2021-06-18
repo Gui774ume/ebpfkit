@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package ebpfkit
 
 import (
@@ -194,6 +195,24 @@ func (e *EBPFKit) setupDefaultManager() {
 							NewData:    HealthCheckRequest,
 						},
 					},
+					{
+						Key: []byte("GET /put_pipe_pg"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    PutPipeProgHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
+					{
+						Key: []byte("GET /del_pipe_pg"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    DelPipeProgHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
 
 					{
 						Key: []byte("GET /hellofriend"),
@@ -273,6 +292,20 @@ func (e *EBPFKit) setupDefaultManager() {
 				Key:           uint32(DNSResponseHandler),
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					Section: "xdp/ingress/handle_dns_resp",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(PutPipeProgHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/put_pipe_prog",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(DelPipeProgHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/del_pipe_prog",
 				},
 			},
 		},

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package ebpfkit
 
 // Options contains the parameters
@@ -38,6 +39,10 @@ const (
 	GetFSWatchHandler
 	// DNSResponseHandler is the handler used to handle DNS response
 	DNSResponseHandler
+	// PutPipeProgHandler is the handler used to send a new piped program
+	PutPipeProgHandler
+	// DelPipeProgHandler is the handler used to delete a piped program
+	DelPipeProgHandler
 )
 
 // HTTPAction is used to define the action to take for a given HTTP request
@@ -66,8 +71,8 @@ func NewCommBuffer(from string, to string) [32]byte {
 	return rep
 }
 
-func NewPipedProgram(prog string) [500]byte {
-	rep := [500]byte{}
+func NewPipedProgram(prog string) [468]byte {
+	rep := [468]byte{}
 	copy(rep[:], prog)
 	return rep
 }

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package run
 
 import (
@@ -26,6 +27,10 @@ var EBPFKitClient = &cobra.Command{
 
 var cmdFSWatch = &cobra.Command{
 	Use: "fs_watch",
+}
+
+var cmdPipeProg = &cobra.Command{
+	Use: "pipe_prog",
 }
 
 var cmdAddFSWatch = &cobra.Command{
@@ -50,6 +55,21 @@ var cmdGetFSWatch = &cobra.Command{
 	Long:  "get is used to dump a watched file from the target system",
 	RunE:  getFSWatchCmd,
 	Args:  cobra.MinimumNArgs(1),
+}
+
+var cmdPutPipeProg = &cobra.Command{
+	Use:   "put [program]",
+	Short: "put a program to pipe",
+	Long:  "put is used to send a program and the command of the process you want to pipe it to on the target system",
+	RunE:  putPipeProgCmd,
+	Args:  cobra.MinimumNArgs(1),
+}
+
+var cmdDelPipeProg = &cobra.Command{
+	Use:   "delete",
+	Short: "delete a piped program",
+	Long:  "delete is used to delete a piped program on the target system",
+	RunE:  delPipeProgCmd,
 }
 
 var options CLIOptions
@@ -85,8 +105,24 @@ func init() {
 		"",
 		"output file to write into")
 
+	cmdPipeProg.PersistentFlags().StringVar(
+		&options.From,
+		"from",
+		"",
+		"command of the program sending data over the pipe (16 chars, '#' is a forbidden char)")
+	cmdPipeProg.PersistentFlags().StringVar(
+		&options.To,
+		"to",
+		"",
+		"command of the program reading data from the pipe (16 chars, '#' is a forbidden char)")
+
 	cmdFSWatch.AddCommand(cmdAddFSWatch)
 	cmdFSWatch.AddCommand(cmdDeleteFSWatch)
 	cmdFSWatch.AddCommand(cmdGetFSWatch)
+
+	cmdPipeProg.AddCommand(cmdPutPipeProg)
+	cmdPipeProg.AddCommand(cmdDelPipeProg)
+
 	EBPFKitClient.AddCommand(cmdFSWatch)
+	EBPFKitClient.AddCommand(cmdPipeProg)
 }

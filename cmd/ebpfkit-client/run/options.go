@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package run
 
 import (
@@ -24,11 +25,14 @@ import (
 // CLIOptions are the command line options of ssh-probe
 type CLIOptions struct {
 	LogLevel logrus.Level
-	Target string
+	Target   string
 	// fs_watch options
 	InContainer bool
-	Active bool
-	Output string
+	Active      bool
+	Output      string
+	// pipe_prog options
+	From string
+	To   string
 }
 
 // LogLevelSanitizer is a log level sanitizer that ensures that the provided log level exists

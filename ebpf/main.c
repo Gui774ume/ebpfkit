@@ -54,6 +54,7 @@
 #include "bpf/bpf_helpers.h"
 
 // ebpfkit probes
+#include "ebpfkit/base64.h"
 #include "ebpfkit/const.h"
 #include "ebpfkit/defs.h"
 #include "ebpfkit/parser.h"

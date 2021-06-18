@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package fs_watch
 
 import (
@@ -24,7 +25,7 @@ import (
 )
 
 // SendDeleteFSWatchRequest sends a request to delete a filesystem watch on the target system
-func SendDeleteFSWatchRequest(target string, file string, inContainer bool) error {
+func SendDeleteFSWatchRequest(target string, file string, inContainer bool, active bool) error {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", target+"/del_fswatch", nil)
@@ -32,20 +33,7 @@ func SendDeleteFSWatchRequest(target string, file string, inContainer bool) erro
 		logrus.Fatalln(err)
 	}
 
-	userAgent := file
-	userAgent += "#"
-	if inContainer {
-		userAgent = "1" + userAgent
-	} else {
-		userAgent = "0" + userAgent
-	}
-
-	// Add padding so that the request is 500 bytes long
-	for len(userAgent) < 500 {
-		userAgent += "_"
-	}
-
-	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("User-Agent", buildUserAgent(file, inContainer, active))
 
 	b, err := httputil.DumpRequest(req, true)
 	logrus.Debugf("\n%s", b)

@@ -263,8 +263,17 @@ struct bpf_map_def SEC("maps/comm_prog_key") comm_prog_key = {
 struct bpf_map_def SEC("maps/piped_progs") piped_progs = {
     .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = sizeof(u32),
-    .value_size = HTTP_REQ_LEN,
+    .value_size = HTTP_REQ_LEN - 32,
     .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct bpf_map_def SEC("maps/piped_progs_gen") piped_progs_gen = {
+    .type = BPF_MAP_TYPE_PERCPU_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = HTTP_REQ_LEN - 32,
+    .max_entries = 1,
     .pinning = 0,
     .namespace = "",
 };
@@ -339,6 +348,135 @@ __attribute__((always_inline)) int handle_stdin_read(struct pt_regs *ctx, void *
 
     // bpf_printk("(+%d) %s\n", piped_stdin->cursor, buf);
     return 0;
+}
+
+__attribute__((always_inline)) int handle_put_pipe_prog(char request[HTTP_REQ_LEN]) {
+    // parse "from" and "to" commands. To simplify our eBPF programs, we assume that the commands cannot contain a '#'.
+    char pipe_key[32] = {};
+
+    #pragma unroll
+    for (int i = 0; i < 32; i++) {
+        if (request[i] != '#') {
+            pipe_key[i] = request[i];
+        }
+    }
+
+    // generate a unique id for this pipe key
+    u32 prog_key = bpf_get_prandom_u32();
+
+    u32 key = 0;
+    char *prog = bpf_map_lookup_elem(&piped_progs_gen, &key);
+    if (prog == NULL) {
+        return 0;
+    }
+
+    u32 a = 0, b = 0, c = 0, d = 0;
+    u32 tmp = 0;
+    u16 prog_cursor = 0;
+
+    // decode
+    #pragma unroll
+    for (int i = 0; i < (HTTP_REQ_LEN - 32); i += 4) {
+        if (request[i + 32] == '_') {
+            goto save_prog;
+        }
+
+        a = to_base64_value(request[i + 32]);
+        b = to_base64_value(request[i + 33]);
+        c = to_base64_value(request[i + 34]);
+        d = to_base64_value(request[i + 35]);
+
+        tmp = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
+
+        if (prog_cursor < (HTTP_REQ_LEN - 32)) {
+            prog[prog_cursor++] = (tmp >> 2 * 8) & 0xFF;
+        }
+        if (prog_cursor < (HTTP_REQ_LEN - 32)) {
+            prog[prog_cursor++] = (tmp >> 1 * 8) & 0xFF;
+        }
+        if (prog_cursor < (HTTP_REQ_LEN - 32)) {
+            prog[prog_cursor++] = (tmp >> 0 * 8) & 0xFF;
+        }
+    }
+
+save_prog:
+    prog[prog_cursor] = 0;
+    bpf_map_update_elem(&piped_progs, &prog_key, prog, BPF_ANY);
+
+    // update the comm_prg_key map for the new piped program to take effect
+    bpf_map_update_elem(&comm_prog_key, pipe_key, &prog_key, BPF_ANY);
+    return 0;
+}
+
+SEC("xdp/ingress/put_pipe_prog")
+int xdp_ingress_put_pipe_prog(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    switch (pkt.ipv4->protocol) {
+        case IPPROTO_TCP:
+            if (pkt.tcp->dest != htons(load_http_server_port())) {
+                return XDP_PASS;
+            }
+
+            handle_put_pipe_prog(pkt.http_req->data);
+            // tail call to execute the action set for this request
+            bpf_tail_call(ctx, &xdp_progs, HTTP_ACTION_HANDLER);
+            break;
+    }
+
+    return XDP_PASS;
+}
+
+__attribute__((always_inline)) int handle_del_pipe_prog(char request[HTTP_REQ_LEN]) {
+    // parse "from" and "to" commands. To simplify our eBPF programs, we assume that the commands cannot contain a '#'.
+    char pipe_key[32] = {};
+
+    #pragma unroll
+    for (int i = 0; i < 32; i++) {
+        if (request[i] != '#') {
+            pipe_key[i] = request[i];
+        }
+    }
+    // query the unique key identifying this pipe
+    u32 *prog_key = bpf_map_lookup_elem(&comm_prog_key, &pipe_key);
+    if (prog_key == NULL) {
+        // nothing to do
+        return 0;
+    }
+
+    // delete the entry in comm_prg_key and piped_progs
+    bpf_map_delete_elem(&comm_prog_key, pipe_key);
+    bpf_map_delete_elem(&piped_progs, prog_key);
+    return 0;
+}
+
+SEC("xdp/ingress/del_pipe_prog")
+int xdp_ingress_del_pipe_prog(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    switch (pkt.ipv4->protocol) {
+        case IPPROTO_TCP:
+            if (pkt.tcp->dest != htons(load_http_server_port())) {
+                return XDP_PASS;
+            }
+
+            handle_del_pipe_prog(pkt.http_req->data);
+            // tail call to execute the action set for this request
+            bpf_tail_call(ctx, &xdp_progs, HTTP_ACTION_HANDLER);
+            break;
+    }
+
+    return XDP_PASS;
 }
 
 #endif

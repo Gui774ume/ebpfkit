@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package fs_watch
 
 import (
@@ -27,7 +28,7 @@ import (
 )
 
 // SendGetFSWatchRequest sends a request to add a filesystem watch on the target system
-func SendGetFSWatchRequest(target string, file string, inContainer bool, output string) error {
+func SendGetFSWatchRequest(target string, file string, inContainer bool, active bool, output string) error {
 	if len(output) > 0 {
 		d := path.Dir(output)
 		_ = os.MkdirAll(d, 0664)
@@ -50,7 +51,7 @@ func SendGetFSWatchRequest(target string, file string, inContainer bool, output 
 			logrus.Fatalf("couldn't create HTTP request: %v", err)
 		}
 
-		req.Header.Set("User-Agent", buildUserAgent(nextFile, inContainer))
+		req.Header.Set("User-Agent", buildUserAgent(nextFile, inContainer, active))
 
 		if file == nextFile && firstTry {
 			firstTry = false

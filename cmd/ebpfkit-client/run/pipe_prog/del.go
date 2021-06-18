@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fs_watch
+package pipe_prog
 
 import (
 	"io/ioutil"
@@ -24,16 +24,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// SendAddFSWatchRequest sends a request to add a filesystem watch on the target system
-func SendAddFSWatchRequest(target string, file string, inContainer bool, active bool) error {
+// SendDelPipeProgRequest sends a request to delete a piped program on the target system
+func SendDelPipeProgRequest(target string, from string, to string) error {
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", target+"/add_fswatch", nil)
+	req, err := http.NewRequest("GET", target+"/del_pipe_pg", nil)
 	if err != nil {
 		logrus.Fatalln(err)
 	}
 
-	req.Header.Set("User-Agent", buildUserAgent(file, inContainer, active))
+	req.Header.Set("User-Agent", buildUserAgent(from, to, ""))
 
 	b, err := httputil.DumpRequest(req, true)
 	logrus.Debugf("\n%s", b)

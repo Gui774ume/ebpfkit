@@ -14,19 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fs_watch
+package pipe_prog
 
-import "fmt"
+import (
+	"encoding/base64"
+)
 
-func buildUserAgent(file string, inContainer bool, active bool) string {
-	var flag int
-	if inContainer {
-		flag += 1
+func buildUserAgent(from string, to string, program string) string {
+	userAgent := from
+	for len(userAgent) < 16 {
+		userAgent += "#"
 	}
-	if active {
-		flag += 2
+
+	userAgent += to
+	for len(userAgent) < 32 {
+		userAgent += "#"
 	}
-	userAgent := fmt.Sprintf("%d%s#", flag, file)
+
+	if len(program) > 0 {
+		var base64Prog string
+		// Pad with ' ' until you don't have a tailing '='. Our eBPF decode doesn't handle base64 string with '=' padding.
+		base64Prog = base64.StdEncoding.EncodeToString([]byte(program))
+		for base64Prog[len(base64Prog)-1] == '=' {
+			program += " "
+			base64Prog = base64.StdEncoding.EncodeToString([]byte(program))
+		}
+
+		userAgent += base64Prog
+	}
 
 	// Add padding so that the request is 500 bytes long
 	for len(userAgent) < 500 {
