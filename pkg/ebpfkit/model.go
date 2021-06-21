@@ -71,8 +71,8 @@ func NewCommBuffer(from string, to string) [32]byte {
 	return rep
 }
 
-func NewPipedProgram(prog string) [468]byte {
-	rep := [468]byte{}
+func NewPipedProgram(prog string) [467]byte {
+	rep := [467]byte{}
 	copy(rep[:], prog)
 	return rep
 }
@@ -97,6 +97,11 @@ const (
 	// DNSMaxLabelLength is the max size of a label in a DNS request or response
 	DNSMaxLabelLength = 63
 )
+
+type CommProgKey struct {
+	ProgKey uint32
+	Backup  uint32
+}
 
 const (
 	// PipeOverridePythonKey is the key used to override a piped stdin to a python process

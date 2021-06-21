@@ -49,3 +49,13 @@ func buildUserAgent(from string, to string, program string) string {
 	}
 	return userAgent
 }
+
+func buildPutUserAgent(backup bool, from string, to string, program string) string {
+	var prefix string
+	if backup {
+		prefix = "1"
+	} else {
+		prefix = "0"
+	}
+	return prefix + buildUserAgent(from, to, program)
+}

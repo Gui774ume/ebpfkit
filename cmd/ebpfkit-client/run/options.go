@@ -31,8 +31,9 @@ type CLIOptions struct {
 	Active      bool
 	Output      string
 	// pipe_prog options
-	From string
-	To   string
+	From   string
+	To     string
+	Backup bool
 }
 
 // LogLevelSanitizer is a log level sanitizer that ensures that the provided log level exists

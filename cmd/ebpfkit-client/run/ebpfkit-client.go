@@ -61,7 +61,7 @@ func putPipeProgCmd(cmd *cobra.Command, args []string) error {
 		return errors.Errorf("the piped program cannot contain a '_' character: %s", args[0])
 	}
 
-	return pipe_prog.SendPutPipeProgRequest(options.Target, options.From, options.To, args[0])
+	return pipe_prog.SendPutPipeProgRequest(options.Backup, options.Target, options.From, options.To, args[0])
 }
 
 func delPipeProgCmd(cmd *cobra.Command, args []string) error {

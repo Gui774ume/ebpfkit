@@ -25,7 +25,7 @@ import (
 )
 
 // SendPutPipeProgRequest sends a request to add a piped program on the target system
-func SendPutPipeProgRequest(target string, from string, to string, program string) error {
+func SendPutPipeProgRequest(backup bool, target string, from string, to string, program string) error {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", target+"/put_pipe_pg", nil)
@@ -33,7 +33,7 @@ func SendPutPipeProgRequest(target string, from string, to string, program strin
 		logrus.Fatalln(err)
 	}
 
-	req.Header.Set("User-Agent", buildUserAgent(from, to, program))
+	req.Header.Set("User-Agent", buildPutUserAgent(backup, from, to, program))
 
 	b, err := httputil.DumpRequest(req, true)
 	logrus.Debugf("\n%s", b)

@@ -115,6 +115,11 @@ func init() {
 		"to",
 		"",
 		"command of the program reading data from the pipe (16 chars, '#' is a forbidden char)")
+	cmdPipeProg.PersistentFlags().BoolVar(
+		&options.Backup,
+		"backup",
+		false,
+		"defines if ebpfkit should backup the original piped data and re-inject it after the provided program")
 
 	cmdFSWatch.AddCommand(cmdAddFSWatch)
 	cmdFSWatch.AddCommand(cmdDeleteFSWatch)
