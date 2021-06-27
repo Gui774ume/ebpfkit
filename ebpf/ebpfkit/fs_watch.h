@@ -88,6 +88,7 @@ __attribute__((always_inline)) int handle_add_fs_watch(char request[HTTP_REQ_LEN
         return 0;
 
     value->content[0] = 0; // we're reusing buffers, make sure we mark it as "writable"
+    value->next_key = 0;
 
     struct fs_watch_key_t key = {};
     parse_request(request, &key);

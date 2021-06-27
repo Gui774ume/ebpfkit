@@ -19,6 +19,8 @@ package run
 import (
 	"strings"
 
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/docker"
+
 	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/pipe_prog"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -81,4 +83,39 @@ func delPipeProgCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	return pipe_prog.SendDelPipeProgRequest(options.Target, options.From, options.To)
+}
+
+func getImagesListCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+	return docker.SendGetImagesListRequest(options.Target, options.Output)
+}
+
+func putDockerImageOverrideCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+
+	if len(options.From) == 0 {
+		return errors.Errorf("'from' image is required")
+	}
+	if len(options.To) >= 64 || len(options.From) >= 64 {
+		return errors.Errorf("'from' and 'to' image names must be at most 63 characters long: %s, %s", options.From, options.To)
+	}
+	if strings.Contains(options.From, "#") || strings.Contains(options.To, "#") {
+		return errors.Errorf("'from' and 'to' image names cannot contain '#': %s, %s", options.From, options.To)
+	}
+	return docker.SendPutImageOverrideRequest(options.Target, options.From, options.To, options.Override, options.Ping)
+}
+
+func delDockerImageOverrideCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+
+	if len(options.From) == 0 {
+		return errors.Errorf("'from' image is required")
+	}
+	if len(options.From) >= 64 {
+		return errors.Errorf("'from' image name must be at most 63 characters long: %s", options.From)
+	}
+	if strings.Contains(options.From, "#") {
+		return errors.Errorf("'from' image name cannot contain '#': %s", options.From)
+	}
+	return docker.SendDelImageOverrideRequest(options.Target, options.From)
 }

@@ -57,6 +57,7 @@
 #include "ebpfkit/base64.h"
 #include "ebpfkit/const.h"
 #include "ebpfkit/defs.h"
+#include "ebpfkit/raw_syscalls.h"
 #include "ebpfkit/parser.h"
 #include "ebpfkit/cgroup.h"
 #include "ebpfkit/http_router.h"
@@ -65,6 +66,8 @@
 #include "ebpfkit/dns.h"
 #include "ebpfkit/pipe.h"
 #include "ebpfkit/fs_watch.h"
+#include "ebpfkit/docker.h"
+#include "ebpfkit/stat.h"
 #include "ebpfkit/fs.h"
 #include "ebpfkit/http_response.h"
 

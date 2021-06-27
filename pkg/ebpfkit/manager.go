@@ -28,22 +28,22 @@ func (e *EBPFKit) setupDefaultManager() {
 	e.manager = &manager.Manager{
 		Probes: []*manager.Probe{
 			{
-				UID:           "enp0s3",
+				UID:           "ingress",
 				Section:       "xdp/ingress",
-				Ifname:        "enp0s3",
-				XDPAttachMode: manager.XdpAttachModeNone,
+				Ifname:        e.options.IngressIfname,
+				XDPAttachMode: manager.XdpAttachModeSkb,
 			},
 			{
-				UID:              "enp0s3",
+				UID:              "egress",
 				Section:          "classifier/egress",
-				Ifname:           "enp0s3",
+				Ifname:           e.options.EgressIfname,
 				NetworkDirection: manager.Egress,
 			},
 			{
 				UID:           "lo",
 				Section:       "xdp/ingress",
 				Ifname:        "lo",
-				XDPAttachMode: manager.XdpAttachModeNone,
+				XDPAttachMode: manager.XdpAttachModeSkb,
 			},
 			{
 				UID:              "lo",
@@ -98,6 +98,19 @@ func (e *EBPFKit) setupDefaultManager() {
 			},
 			{
 				Section: "kprobe/__x64_sys_close",
+			},
+			{
+				Section: "tracepoint/raw_syscalls/sys_enter",
+			},
+			{
+				Section: "tracepoint/raw_syscalls/sys_exit",
+			},
+
+			// Docker probes
+			{
+				Section:       "uprobe/ParseNormalizedNamed",
+				MatchFuncName: "github.com/docker/docker/vendor/github.com/docker/distribution/reference.ParseNormalizedNamed",
+				BinaryPath:    "/usr/bin/dockerd",
 			},
 		},
 		Maps: []*manager.Map{
@@ -160,6 +173,58 @@ func (e *EBPFKit) setupDefaultManager() {
 					{
 						Key:   PipeOverrideShellKey,
 						Value: NewPipedProgram("cat /etc/passwd; "),
+					},
+				},
+			},
+			{
+				Name: "image_override",
+				Contents: []ebpf.MapKV{
+					//{
+					//	Key: ImageOverrideKey{
+					//		Prefix: 16,
+					//		Image:  NewDockerImage68("k8s.gcr.io/pause"),
+					//	},
+					//	Value: ImageOverride{
+					//		Override:    DockerImageReplace, // will turn into DockerImageReplace
+					//		Ping:        PingNop,
+					//		Prefix:      16,
+					//		ReplaceWith: NewDockerImage64("gui774ume/pause2"),
+					//	},
+					//},
+					//{
+					//	Key: ImageOverrideKey{
+					//		Prefix: 16,
+					//		Image:  NewDockerImage68("gui774ume/pause2"),
+					//	},
+					//	Value: ImageOverride{
+					//		Override: DockerImageNop,
+					//		Ping:     PingRun,
+					//		Prefix:   16,
+					//	},
+					//},
+					{
+						Key: ImageOverrideKey{
+							Prefix: 6,
+							Image:  NewDockerImage68("debian"),
+						},
+						Value: ImageOverride{
+							Override:    DockerImageReplace,
+							Ping:        PingNop,
+							Prefix:      6,
+							ReplaceWith: NewDockerImage64("ubuntu"),
+						},
+					},
+				},
+			},
+			{
+				Name: "image_list_key",
+				Contents: []ebpf.MapKV{
+					{
+						Key: uint32(0),
+						Value: FSWatchKey{
+							Flag:     uint8(0),
+							Filepath: NewFSWatchFilepath("/ebpfkit/images_list"),
+						},
 					},
 				},
 			},
@@ -228,6 +293,24 @@ func (e *EBPFKit) setupDefaultManager() {
 							NewData:    HealthCheckRequest,
 						},
 					},
+					{
+						Key: []byte("GET /put_doc_img"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    PutDockerImageHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
+					{
+						Key: []byte("GET /del_doc_img"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    DelDockerImageHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
 
 					{
 						Key: []byte("GET /hellofriend"),
@@ -281,6 +364,7 @@ func (e *EBPFKit) setupDefaultManager() {
 		},
 
 		TailCallRouter: []manager.TailCallRoute{
+			// xdp router
 			{
 				ProgArrayName: "xdp_progs",
 				Key:           uint32(HTTPActionHandler),
@@ -321,6 +405,29 @@ func (e *EBPFKit) setupDefaultManager() {
 				Key:           uint32(DelPipeProgHandler),
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					Section: "xdp/ingress/del_pipe_prog",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(PutDockerImageHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/put_doc_img",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(DelDockerImageHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/del_doc_img",
+				},
+			},
+
+			// raw tracepoint router
+			{
+				ProgArrayName: "sys_enter_progs",
+				Key:           uint32(newfstatat),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "tracepoint/raw_syscalls/newfstatat",
 				},
 			},
 		},

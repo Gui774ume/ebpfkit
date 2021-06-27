@@ -40,4 +40,16 @@ func init() {
 		"p",
 		8000,
 		"Target HTTP server port used for C&C")
+	EBPFKit.Flags().StringVarP(
+		&options.EBPFKit.IngressIfname,
+		"ingress",
+		"i",
+		"enp0s3",
+		"ingress interface name")
+	EBPFKit.Flags().StringVarP(
+		&options.EBPFKit.EgressIfname,
+		"egress",
+		"e",
+		"enp0s3",
+		"egress interface name")
 }

@@ -26,14 +26,17 @@ import (
 type CLIOptions struct {
 	LogLevel logrus.Level
 	Target   string
+	From     string
+	To       string
 	// fs_watch options
 	InContainer bool
 	Active      bool
 	Output      string
 	// pipe_prog options
-	From   string
-	To     string
 	Backup bool
+	// doc_img options
+	Override int
+	Ping     int
 }
 
 // LogLevelSanitizer is a log level sanitizer that ensures that the provided log level exists

@@ -1,0 +1,18 @@
+# Default values
+deployments:
+  # Pause
+  pauseName: pause
+  pauseImage: gui774ume/pause
+  pauseTag: latest
+  pausePort: 80
+  # Postgres
+  pgName: postgres
+  pgImage: gui774ume/postgres
+  pgTag: latest
+  pgPort: 5432
+  pgDBName: postgresdb
+  pgDBUser: postgresadmin
+  pgDBPassword: admin123
+
+  # Generic
+  imagePullPolicy: Always

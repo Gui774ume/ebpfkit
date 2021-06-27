@@ -33,6 +33,10 @@ var cmdPipeProg = &cobra.Command{
 	Use: "pipe_prog",
 }
 
+var cmdDockerProg = &cobra.Command{
+	Use: "docker",
+}
+
 var cmdAddFSWatch = &cobra.Command{
 	Use:   "add [path of file]",
 	Short: "add a filesystem watch",
@@ -59,7 +63,7 @@ var cmdGetFSWatch = &cobra.Command{
 
 var cmdPutPipeProg = &cobra.Command{
 	Use:   "put [program]",
-	Short: "put a program to pipe",
+	Short: "put sends a program to pipe",
 	Long:  "put is used to send a program and the command of the process you want to pipe it to on the target system",
 	RunE:  putPipeProgCmd,
 	Args:  cobra.MinimumNArgs(1),
@@ -72,6 +76,27 @@ var cmdDelPipeProg = &cobra.Command{
 	RunE:  delPipeProgCmd,
 }
 
+var cmdGetImagesList = &cobra.Command{
+	Use:   "list_images",
+	Short: "list container images",
+	Long:  "list_images returns the list of Docker images detected",
+	RunE:  getImagesListCmd,
+}
+
+var cmdPutDockerImageOverride = &cobra.Command{
+	Use:   "put",
+	Short: "put sends an image override request",
+	Long:  "put is used to request that a Docker image is overridden on the target system",
+	RunE:  putDockerImageOverrideCmd,
+}
+
+var cmdDelDockerImageOverride = &cobra.Command{
+	Use:   "delete",
+	Short: "delete removes a Docker image override request",
+	Long:  "delete is used to stop overriding the provided Docker image on the target system",
+	RunE:  delDockerImageOverrideCmd,
+}
+
 var options CLIOptions
 
 func init() {
@@ -80,7 +105,6 @@ func init() {
 		"log-level",
 		"l",
 		"log level, options: panic, fatal, error, warn, info, debug or trace")
-
 	EBPFKitClient.PersistentFlags().StringVarP(
 		&options.Target,
 		"target",
@@ -105,6 +129,11 @@ func init() {
 		"",
 		"output file to write into")
 
+	cmdFSWatch.AddCommand(cmdAddFSWatch)
+	cmdFSWatch.AddCommand(cmdDeleteFSWatch)
+	cmdFSWatch.AddCommand(cmdGetFSWatch)
+	EBPFKitClient.AddCommand(cmdFSWatch)
+
 	cmdPipeProg.PersistentFlags().StringVar(
 		&options.From,
 		"from",
@@ -121,13 +150,45 @@ func init() {
 		false,
 		"defines if ebpfkit should backup the original piped data and re-inject it after the provided program")
 
-	cmdFSWatch.AddCommand(cmdAddFSWatch)
-	cmdFSWatch.AddCommand(cmdDeleteFSWatch)
-	cmdFSWatch.AddCommand(cmdGetFSWatch)
-
 	cmdPipeProg.AddCommand(cmdPutPipeProg)
 	cmdPipeProg.AddCommand(cmdDelPipeProg)
-
-	EBPFKitClient.AddCommand(cmdFSWatch)
 	EBPFKitClient.AddCommand(cmdPipeProg)
+
+	cmdGetImagesList.PersistentFlags().StringVarP(
+		&options.Output,
+		"output",
+		"o",
+		"",
+		"output file to write into")
+	cmdPutDockerImageOverride.PersistentFlags().StringVar(
+		&options.From,
+		"from",
+		"",
+		"defines the Docker image to override")
+	cmdPutDockerImageOverride.PersistentFlags().StringVar(
+		&options.To,
+		"to",
+		"",
+		"defines the Docker image to override with")
+	cmdPutDockerImageOverride.PersistentFlags().IntVar(
+		&options.Override,
+		"override",
+		0,
+		"defines the action to take: 0 for nop, 1 for replace")
+	cmdPutDockerImageOverride.PersistentFlags().IntVar(
+		&options.Ping,
+		"ping",
+		0,
+		"defines the answer to give on a ping from the input Docker image: 0 for nop, 1 for crash, 2 for run and 3 for hide")
+	cmdDelDockerImageOverride.PersistentFlags().StringVar(
+		&options.From,
+		"from",
+		"",
+		"defines the Docker image")
+
+	cmdDockerProg.AddCommand(cmdGetImagesList)
+	cmdDockerProg.AddCommand(cmdPutDockerImageOverride)
+	cmdDockerProg.AddCommand(cmdDelDockerImageOverride)
+	EBPFKitClient.AddCommand(cmdDockerProg)
+
 }

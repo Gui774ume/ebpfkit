@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/gorilla/mux"
 )
@@ -53,6 +54,11 @@ func logPrefix(r *http.Request) string {
 }
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	b, err := httputil.DumpRequest(r, true)
+	if err == nil {
+		log.Printf("%s", b)
+	}
+
 	data, _ := json.Marshal(NewMessage("OK", http.StatusOK))
 	w.Write(data)
 	log.Printf("%s - %d\n", logPrefix(r), http.StatusOK)
