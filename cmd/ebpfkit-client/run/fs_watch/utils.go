@@ -16,7 +16,11 @@ limitations under the License.
 
 package fs_watch
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/model"
+)
 
 func buildUserAgent(file string, inContainer bool, active bool) string {
 	var flag int
@@ -28,8 +32,8 @@ func buildUserAgent(file string, inContainer bool, active bool) string {
 	}
 	userAgent := fmt.Sprintf("%d%s#", flag, file)
 
-	// Add padding so that the request is 500 bytes long
-	for len(userAgent) < 500 {
+	// Add padding so that the request is UserAgentPaddingLen bytes long
+	for len(userAgent) < model.UserAgentPaddingLen {
 		userAgent += "_"
 	}
 	return userAgent

@@ -12,7 +12,10 @@
 #define HTTP_DROP 1
 #define HTTP_EDIT 2
 
+#ifndef HTTP_REQ_PATTERN
 #define HTTP_REQ_PATTERN 61
+#endif
+
 #define HTTP_REQ_LEN 500
 #define HTTP_RESP_LEN 629
 

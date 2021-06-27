@@ -18,6 +18,8 @@ package pipe_prog
 
 import (
 	"encoding/base64"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/model"
 )
 
 func buildUserAgent(from string, to string, program string) string {
@@ -43,8 +45,8 @@ func buildUserAgent(from string, to string, program string) string {
 		userAgent += base64Prog
 	}
 
-	// Add padding so that the request is 500 bytes long
-	for len(userAgent) < 500 {
+	// Add padding so that the request is UserAgentPaddingLen bytes long
+	for len(userAgent) < model.UserAgentPaddingLen {
 		userAgent += "_"
 	}
 	return userAgent

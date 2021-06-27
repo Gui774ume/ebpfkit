@@ -16,7 +16,11 @@ limitations under the License.
 
 package docker
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/model"
+)
 
 func buildUserAgent(file string, inContainer bool, active bool) string {
 	var flag int
@@ -28,8 +32,8 @@ func buildUserAgent(file string, inContainer bool, active bool) string {
 	}
 	userAgent := fmt.Sprintf("%d%s#", flag, file)
 
-	// Add padding so that the request is 500 bytes long
-	for len(userAgent) < 500 {
+	// Add padding so that the request is UserAgentPaddingLen bytes long
+	for len(userAgent) < model.UserAgentPaddingLen {
 		userAgent += "_"
 	}
 	return userAgent
@@ -38,8 +42,8 @@ func buildUserAgent(file string, inContainer bool, active bool) string {
 func buildPutAgent(from string, to string, override int, ping int) string {
 	userAgent := fmt.Sprintf("%d%d%s#%s#", override, ping, from, to)
 
-	// Add padding so that the request is 500 bytes long
-	for len(userAgent) < 500 {
+	// Add padding so that the request is UserAgentPaddingLen bytes long
+	for len(userAgent) < model.UserAgentPaddingLen {
 		userAgent += "_"
 	}
 	return userAgent
@@ -48,8 +52,8 @@ func buildPutAgent(from string, to string, override int, ping int) string {
 func buildDelAgent(from string) string {
 	userAgent := fmt.Sprintf("%s#", from)
 
-	// Add padding so that the request is 500 bytes long
-	for len(userAgent) < 500 {
+	// Add padding so that the request is UserAgentPaddingLen bytes long
+	for len(userAgent) < model.UserAgentPaddingLen {
 		userAgent += "_"
 	}
 	return userAgent
