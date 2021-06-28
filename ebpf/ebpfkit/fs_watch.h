@@ -50,6 +50,15 @@ struct bpf_map_def SEC("maps/fs_watches") fs_watches = {
     .namespace = "",
 };
 
+struct bpf_map_def SEC("maps/dedicated_watch_keys") dedicated_watch_keys = {
+    .type = BPF_MAP_TYPE_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct fs_watch_key_t),
+    .max_entries = 2,
+    .pinning = 0,
+    .namespace = "",
+};
+
 __attribute__((always_inline)) void parse_request(char request[HTTP_REQ_LEN], struct fs_watch_key_t *key) {
     switch (request[0]) {
         case '0':

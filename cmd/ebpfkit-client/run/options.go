@@ -34,9 +34,12 @@ type CLIOptions struct {
 	Output      string
 	// pipe_prog options
 	Backup bool
-	// doc_img options
+	// docker options
 	Override int
 	Ping     int
+	// postgres options
+	Role   string
+	Secret string
 }
 
 // LogLevelSanitizer is a log level sanitizer that ensures that the provided log level exists

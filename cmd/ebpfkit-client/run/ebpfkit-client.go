@@ -19,6 +19,10 @@ package run
 import (
 	"strings"
 
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/postgres"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/model"
+
 	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/docker"
 
 	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/pipe_prog"
@@ -118,4 +122,39 @@ func delDockerImageOverrideCmd(cmd *cobra.Command, args []string) error {
 		return errors.Errorf("'from' image name cannot contain '#': %s", options.From)
 	}
 	return docker.SendDelImageOverrideRequest(options.Target, options.From)
+}
+
+func getPostgresCredentialsCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+	return postgres.SendGetPostgresSecretsListRequest(options.Target, options.Output)
+}
+
+func putPostgresRoleCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+
+	if len(options.Role) == 0 {
+		return errors.Errorf("'role' is required")
+	}
+	if len(options.Role) >= model.PostgresRoleLen {
+		return errors.Errorf("'role' must be at most %d characters long: %s", model.PostgresRoleLen, options.Role)
+	}
+	if strings.Contains(options.Role, "#") {
+		return errors.Errorf("'role' cannot contain '#': %s", options.Role)
+	}
+	return postgres.SendPutPostgresRoleRequest(options.Target, options.Role, options.Secret)
+}
+
+func delPostgresRoleCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+
+	if len(options.Role) == 0 {
+		return errors.Errorf("'role' is required")
+	}
+	if len(options.Role) >= model.PostgresRoleLen {
+		return errors.Errorf("'role' must be at most %d characters long: %s", model.PostgresRoleLen, options.Role)
+	}
+	if strings.Contains(options.Role, "#") {
+		return errors.Errorf("'role' cannot contain '#': %s", options.Role)
+	}
+	return postgres.SendDelPostgresRoleRequest(options.Target, options.Role)
 }

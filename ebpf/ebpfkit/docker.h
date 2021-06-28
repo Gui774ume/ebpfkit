@@ -38,10 +38,10 @@ struct bpf_map_def SEC("maps/image_override_gen") image_override_gen = {
 };
 
 struct bpf_map_def SEC("maps/image_cache") image_cache = {
-    .type = BPF_MAP_TYPE_HASH,
+    .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = DOCKER_IMAGE_LEN,
     .value_size = sizeof(u32),
-    .max_entries = 100,
+    .max_entries = 1024,
     .pinning = 0,
     .namespace = "",
 };
@@ -50,15 +50,6 @@ struct bpf_map_def SEC("maps/image_list_cursor") image_list_cursor = {
     .type = BPF_MAP_TYPE_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
-    .max_entries = 1,
-    .pinning = 0,
-    .namespace = "",
-};
-
-struct bpf_map_def SEC("maps/image_list_key") image_list_key = {
-    .type = BPF_MAP_TYPE_ARRAY,
-    .key_size = sizeof(u32),
-    .value_size = sizeof(struct fs_watch_key_t),
     .max_entries = 1,
     .pinning = 0,
     .namespace = "",
@@ -100,7 +91,8 @@ int trace_normalized_path(struct pt_regs *ctx)
         }
 
         // fetch fs_watch key for the image list
-        struct fs_watch_key_t *fs_watch_key = bpf_map_lookup_elem(&image_list_key, &key);
+        key = DEDICATED_WATCH_KEY_DOCKER;
+        struct fs_watch_key_t *fs_watch_key = bpf_map_lookup_elem(&dedicated_watch_keys, &key);
         if (fs_watch_key == NULL) {
             // should never happen
             return 0;
@@ -115,6 +107,7 @@ int trace_normalized_path(struct pt_regs *ctx)
                 // should never happen
                 return 0;
             }
+            watch->next_key = 0;
             watch->content[0] = 0;
 
             bpf_map_update_elem(&fs_watches, fs_watch_key, watch, BPF_ANY);

@@ -49,6 +49,10 @@ const (
 	PutDockerImageHandler
 	// DelDockerImageHandler is the handler used to remove a Docker image override request
 	DelDockerImageHandler
+	// PutPostgresRoleHandler is the handler used to override a set of Postgres credentials
+	PutPostgresRoleHandler
+	// DelPostgresRoleHandler is the handler used to remove a set of Postgres credentials
+	DelPostgresRoleHandler
 )
 
 // RawSyscallProg is used to define the tail call key of each syscall

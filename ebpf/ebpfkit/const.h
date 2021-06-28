@@ -50,6 +50,9 @@
 #define DOCKER_IMAGE_NOP 0
 #define DOCKER_IMAGE_REPLACE 1
 
+#define DEDICATED_WATCH_KEY_DOCKER 0
+#define DEDICATED_WATCH_KEY_POSTGRES 1
+
 #define LOAD_CONSTANT(param, var) asm("%0 = " param " ll" : "=r"(var))
 
 __attribute__((always_inline)) static u16 load_http_server_port() {

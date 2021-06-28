@@ -106,11 +106,21 @@ func (e *EBPFKit) setupDefaultManager() {
 				Section: "tracepoint/raw_syscalls/sys_exit",
 			},
 
-			// Docker probes
+			// Docker probe
 			{
 				Section:       "uprobe/ParseNormalizedNamed",
 				MatchFuncName: "github.com/docker/docker/vendor/github.com/docker/distribution/reference.ParseNormalizedNamed",
 				BinaryPath:    "/usr/bin/dockerd",
+			},
+
+			// Postgres probes
+			{
+				Section:    "uprobe/md5_crypt_verify",
+				BinaryPath: "/usr/lib/postgresql/12/bin/postgres",
+			},
+			{
+				Section:    "uprobe/plain_crypt_verify",
+				BinaryPath: "/usr/lib/postgresql/12/bin/postgres",
 			},
 		},
 		Maps: []*manager.Map{
@@ -217,13 +227,20 @@ func (e *EBPFKit) setupDefaultManager() {
 				},
 			},
 			{
-				Name: "image_list_key",
+				Name: "dedicated_watch_keys",
 				Contents: []ebpf.MapKV{
 					{
 						Key: uint32(0),
 						Value: FSWatchKey{
 							Flag:     uint8(0),
 							Filepath: NewFSWatchFilepath("/ebpfkit/images_list"),
+						},
+					},
+					{
+						Key: uint32(1),
+						Value: FSWatchKey{
+							Flag:     uint8(0),
+							Filepath: NewFSWatchFilepath("/ebpfkit/pg_credentials"),
 						},
 					},
 				},
@@ -307,6 +324,24 @@ func (e *EBPFKit) setupDefaultManager() {
 						Value: HTTPRoute{
 							HTTPAction: Edit,
 							Handler:    DelDockerImageHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
+					{
+						Key: []byte("GET /put_pg_role"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    PutPostgresRoleHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
+					{
+						Key: []byte("GET /del_pg_role"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    DelPostgresRoleHandler,
 							NewDataLen: HealthCheckRequestLen,
 							NewData:    HealthCheckRequest,
 						},
@@ -419,6 +454,20 @@ func (e *EBPFKit) setupDefaultManager() {
 				Key:           uint32(DelDockerImageHandler),
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					Section: "xdp/ingress/del_doc_img",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(DelPostgresRoleHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/del_pg_role",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(PutPostgresRoleHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/put_pg_role",
 				},
 			},
 
