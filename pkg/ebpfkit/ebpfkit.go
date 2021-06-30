@@ -59,8 +59,8 @@ func (e *EBPFKit) start() error {
 		return errors.Wrap(err, "couldn't find asset")
 	}
 
-	// setup a default manager
-	e.setupDefaultManager()
+	// setup the manager
+	e.setupManager()
 
 	// initialize the manager
 	if err := e.manager.InitWithOptions(bytes.NewReader(buf), e.managerOptions); err != nil {

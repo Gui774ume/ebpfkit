@@ -21,6 +21,8 @@ type Options struct {
 	TargetHTTPServerPort int
 	IngressIfname        string
 	EgressIfname         string
+	DockerDaemonPath     string
+	PostgresqlPath       string
 }
 
 func (o Options) check() error {

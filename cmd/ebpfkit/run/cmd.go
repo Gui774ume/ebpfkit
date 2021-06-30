@@ -52,4 +52,14 @@ func init() {
 		"e",
 		"enp0s3",
 		"egress interface name")
+	EBPFKit.Flags().StringVar(
+		&options.EBPFKit.DockerDaemonPath,
+		"docker",
+		"/usr/bin/dockerd",
+		"path to the Docker daemon executable")
+	EBPFKit.Flags().StringVar(
+		&options.EBPFKit.PostgresqlPath,
+		"postgres",
+		"/usr/lib/postgresql/12/bin/postgres",
+		"path to the Postgres daemon executable")
 }

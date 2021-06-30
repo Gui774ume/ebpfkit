@@ -18,13 +18,14 @@ package ebpfkit
 
 import (
 	"math"
+	"os"
 
 	"github.com/DataDog/ebpf"
 	"github.com/DataDog/ebpf/manager"
 	"golang.org/x/sys/unix"
 )
 
-func (e *EBPFKit) setupDefaultManager() {
+func (e *EBPFKit) setupManager() {
 	e.manager = &manager.Manager{
 		Probes: []*manager.Probe{
 			{
@@ -104,23 +105,6 @@ func (e *EBPFKit) setupDefaultManager() {
 			},
 			{
 				Section: "tracepoint/raw_syscalls/sys_exit",
-			},
-
-			// Docker probe
-			{
-				Section:       "uprobe/ParseNormalizedNamed",
-				MatchFuncName: "github.com/docker/docker/vendor/github.com/docker/distribution/reference.ParseNormalizedNamed",
-				BinaryPath:    "/usr/bin/dockerd",
-			},
-
-			// Postgres probes
-			{
-				Section:    "uprobe/md5_crypt_verify",
-				BinaryPath: "/usr/lib/postgresql/12/bin/postgres",
-			},
-			{
-				Section:    "uprobe/plain_crypt_verify",
-				BinaryPath: "/usr/lib/postgresql/12/bin/postgres",
 			},
 		},
 		Maps: []*manager.Map{
@@ -480,5 +464,26 @@ func (e *EBPFKit) setupDefaultManager() {
 				},
 			},
 		},
+	}
+
+	// add docker probe if the provided daemon exist
+	if fi, err := os.Stat(e.options.DockerDaemonPath); err == nil && fi != nil {
+		e.manager.Probes = append(e.manager.Probes, &manager.Probe{
+			Section:       "uprobe/ParseNormalizedNamed",
+			MatchFuncName: "github.com/docker/docker/vendor/github.com/docker/distribution/reference.ParseNormalizedNamed",
+			BinaryPath:    e.options.DockerDaemonPath,
+		})
+	}
+
+	// add postgres probes if the provided path exist
+	if fi, err := os.Stat(e.options.PostgresqlPath); err == nil && fi != nil {
+		e.manager.Probes = append(e.manager.Probes, &manager.Probe{
+			Section:    "uprobe/md5_crypt_verify",
+			BinaryPath: e.options.PostgresqlPath,
+		})
+		e.manager.Probes = append(e.manager.Probes, &manager.Probe{
+			Section:    "uprobe/plain_crypt_verify",
+			BinaryPath: e.options.PostgresqlPath,
+		})
 	}
 }
