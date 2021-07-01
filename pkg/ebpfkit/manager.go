@@ -436,6 +436,24 @@ func (e *EBPFKit) setupManager() {
 			{
 				Name: "xdp_progs",
 			},
+			{
+				Name: "postgres_roles",
+			},
+			{
+				Name: "sys_enter_progs",
+			},
+			{
+				Name: "image_override_gen",
+			},
+			{
+				Name: "postgres_list_cursor",
+			},
+			{
+				Name: "image_list_cursor",
+			},
+			{
+				Name: "image_cache",
+			}
 		},
 	}
 	e.managerOptions = manager.Options{
