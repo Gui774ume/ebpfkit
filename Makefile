@@ -8,6 +8,7 @@ build-ebpf:
 	mkdir -p ebpf/bin
 	clang -D__KERNEL__ -D__ASM_SYSREG_H \
 	  	-DUSE_SYSCALL_WRAPPER=1 \
+		-DKBUILD_MODNAME=\"ebpfkit\" \
 		-Wno-unused-value \
 		-Wno-pointer-sign \
 		-Wno-compare-distinct-pointer-types \
@@ -61,6 +62,10 @@ build-client:
 
 build-pause:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags '-w' -o bin/ ./cmd/demo/pause/./...
+
+static:
+	mkdir -p bin/
+	go build -tags osusergo,netgo -ldflags="-extldflags '-static'" -o bin/ ./cmd/./...
 
 run:
 	sudo ./bin/ebpfkit
