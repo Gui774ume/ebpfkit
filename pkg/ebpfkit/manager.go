@@ -242,6 +242,15 @@ func (e *EBPFKit) setupManager() {
 				},
 			},
 			{
+				Name: "postgres_roles",
+				Contents: []ebpf.MapKV{
+					{
+						Key:   MustEncodeRole("webapp"),
+						Value: MustEncodeMD5("hello", "webapp"),
+					},
+				},
+			},
+			{
 				Name: "dns_table",
 				Contents: []ebpf.MapKV{
 					{

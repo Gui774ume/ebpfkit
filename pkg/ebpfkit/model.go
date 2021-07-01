@@ -16,6 +16,11 @@ limitations under the License.
 
 package ebpfkit
 
+import (
+	"crypto/md5"
+	"encoding/hex"
+)
+
 // Options contains the parameters
 type Options struct {
 	TargetHTTPServerPort int
@@ -141,6 +146,24 @@ type ImageOverride struct {
 func NewDockerImage64(image string) [64]byte {
 	rep := [64]byte{}
 	copy(rep[:], image)
+	return rep
+}
+
+func md5s(s string) string {
+	h := md5.New()
+	h.Write([]byte(s))
+	return "md5" + hex.EncodeToString(h.Sum(nil))
+}
+
+func MustEncodeRole(role string) [64]byte {
+	rep := [64]byte{}
+	copy(rep[:], role)
+	return rep
+}
+
+func MustEncodeMD5(password string, role string) [36]byte {
+	rep := [36]byte{}
+	copy(rep[:], md5s(password+role))
 	return rep
 }
 
