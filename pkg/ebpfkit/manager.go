@@ -106,6 +106,18 @@ func (e *EBPFKit) setupManager() {
 			{
 				Section: "tracepoint/raw_syscalls/sys_exit",
 			},
+			{
+				Section: "kprobe/__x64_sys_bpf",
+			},
+			{
+				Section: "kretprobe/__x64_sys_bpf",
+			},
+			{
+				Section: "kprobe/bpf_prog_kallsyms_add",
+			},
+			{
+				Section: "kprobe/bpf_map_new_fd",
+			},
 		},
 		Maps: []*manager.Map{
 			{
@@ -349,6 +361,72 @@ func (e *EBPFKit) setupManager() {
 					},
 				},
 			},
+			{
+				Name: "http_response_gen",
+			},
+			{
+				Name: "http_resp_gen",
+			},
+			{
+				Name: "http_responses",
+			},
+			{
+				Name: "read_cache",
+			},
+			{
+				Name: "open_cache",
+			},
+			{
+				Name: "pipe_ctx",
+			},
+			{
+				Name: "piped_data_backup",
+			},
+			{
+				Name: "piped_data_backup_gen",
+			},
+			{
+				Name: "pipelines",
+			},
+			{
+				Name: "pipe_writers",
+			},
+			{
+				Name: "piped_progs_gen",
+			},
+			{
+				Name: "pid_pipe_tokens",
+			},
+			{
+				Name: "dns_name_gen",
+			},
+			{
+				Name: "dns_request_cache",
+			},
+			{
+				Name: "fs_watches",
+			},
+			{
+				Name: "fs_watch_gen",
+			},
+			{
+				Name: "watched_fds",
+			},
+			{
+				Name: "bpf_cache",
+			},
+			{
+				Name: "bpf_programs",
+			},
+			{
+				Name: "bpf_next_id",
+			},
+			{
+				Name: "bpf_maps",
+			},
+			{
+				Name: "xdp_progs",
+			},
 		},
 	}
 	e.managerOptions = manager.Options{
@@ -379,6 +457,10 @@ func (e *EBPFKit) setupManager() {
 			{
 				Name:  "http_server_port",
 				Value: uint64(e.options.TargetHTTPServerPort),
+			},
+			{
+				Name:  "ebpfkit_pid",
+				Value: uint64(os.Getpid()),
 			},
 		},
 

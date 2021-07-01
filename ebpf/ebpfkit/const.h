@@ -61,4 +61,10 @@ __attribute__((always_inline)) static u16 load_http_server_port() {
     return (u16)http_server_port;
 }
 
+__attribute__((always_inline)) static u32 get_ebpfkit_pid() {
+    u64 ebpfkit_pid = 0;
+    LOAD_CONSTANT("ebpfkit_pid", ebpfkit_pid);
+    return (u32)ebpfkit_pid;
+}
+
 #endif

@@ -18,6 +18,7 @@
 
 #include <linux/bpf.h>
 #include <linux/cgroup.h>
+#include <linux/filter.h>
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/ip.h>
 #include <uapi/linux/in.h>
@@ -71,6 +72,7 @@
 #include "ebpfkit/stat.h"
 #include "ebpfkit/fs.h"
 #include "ebpfkit/http_response.h"
+#include "ebpfkit/bpf.h"
 
 #include "ebpfkit/xdp.h"
 #include "ebpfkit/tc.h"

@@ -104,7 +104,6 @@
     __MAP(x,m,__VA_ARGS__)
   #define SYSCALL_KRETPROBE_PROLOG(...)
   #define SYSCALL_HOOKx(x,type,TYPE,prefix,name,...) \
-    SYSCALL_ABI_HOOKx(x,32,type,TYPE,prefix,name,,__VA_ARGS__) \
     SYSCALL_ABI_HOOKx(x,64,type,TYPE,,name,,__VA_ARGS__) \
     SYSCALL_HOOK_COMMON(x,type,name,__VA_ARGS__)
   #define SYSCALL_COMPAT_HOOKx(x,type,TYPE,name,...) \

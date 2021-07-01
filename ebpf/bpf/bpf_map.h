@@ -5,6 +5,10 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
+
+#ifndef _BPF_MAP_H_
+#define _BPF_MAP_H_
+
 #define BUF_SIZE_MAP_NS 256
 
 typedef struct bpf_map_def {
@@ -24,3 +28,5 @@ enum bpf_pin_type {
 	PIN_GLOBAL_NS,
 	PIN_CUSTOM_NS,
 };
+
+#endif

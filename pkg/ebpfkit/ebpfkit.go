@@ -18,13 +18,14 @@ package ebpfkit
 
 import (
 	"bytes"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/DataDog/ebpf"
 	"github.com/DataDog/ebpf/manager"
-	"github.com/pkg/errors"
-
 	"github.com/Gui774ume/ebpfkit/pkg/assets"
+	"github.com/pkg/errors"
 )
 
 // EBPFKit is the main EBPFKit structure
@@ -50,6 +51,27 @@ func (e *EBPFKit) Start() error {
 		return err
 	}
 	return nil
+}
+
+func (e *EBPFKit) dumpPrograms() {
+	var progIds []int
+	prev := 0
+	for {
+		id, err := ProgGetNextId(prev)
+		if err != nil {
+			log.Printf("Failed to retrieve prog: %s", err)
+			break
+		}
+
+		if id == -1 {
+			break
+		}
+
+		progIds = append(progIds, id)
+		prev = id
+	}
+
+	fmt.Printf("Programs: %+v\n", progIds)
 }
 
 func (e *EBPFKit) start() error {
@@ -78,6 +100,11 @@ func (e *EBPFKit) start() error {
 	}
 
 	e.startTime = time.Now()
+
+	if err := e.setupProgramMaps(); err != nil {
+		return errors.Wrap(err, "failed to setup program maps")
+	}
+
 	return nil
 }
 
@@ -94,5 +121,74 @@ func (e *EBPFKit) setupMaps() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (e *EBPFKit) setupProgramMaps() error {
+	time.Sleep(time.Second)
+
+	bpfProgMap, _, err := e.manager.GetMap("bpf_programs")
+	if err != nil {
+		return errors.Wrap(err, "couldn't get bpf program map")
+	}
+
+	bpfMapMap, _, err := e.manager.GetMap("bpf_maps")
+	if err != nil {
+		return errors.Wrap(err, "couldn't get bpf map map")
+	}
+
+	bpfNextProgramMap, _, err := e.manager.GetMap("bpf_next_id")
+	if err != nil {
+		return errors.Wrap(err, "couldn't get bpf_next_id map")
+	}
+
+	bpfNextProgramMap.Put(uint32(0), uint32(0xFFFFFFFF)) // next program
+	bpfNextProgramMap.Put(uint32(1), uint32(0xFFFFFFFF)) // next map
+
+	for _, probe := range e.manager.Probes {
+		progID, err := probe.Program().ID()
+		if err != nil {
+			log.Printf("Failed to get program id for probe %s", probe.Section)
+			continue
+		}
+
+		if err := bpfProgMap.Put(uint32(progID), uint32(0xFFFFFFFF)); err != nil {
+			return errors.Wrap(err, "failed to insert program into map")
+		}
+	}
+
+	for _, tailCallRoute := range e.managerOptions.TailCallRouter {
+		programs, _, _ := e.manager.GetProgram(tailCallRoute.ProbeIdentificationPair)
+
+		for _, program := range programs {
+			progID, err := program.ID()
+			if err != nil {
+				log.Printf("Failed to get program id for probe %s", program.String())
+				continue
+			}
+
+			if err := bpfProgMap.Put(uint32(progID), uint32(0xFFFFFFFF)); err != nil {
+				return errors.Wrap(err, "failed to insert program into map")
+			}
+		}
+	}
+
+	for _, m := range e.manager.Maps {
+		ebpfMap, _, err := e.manager.GetMap(m.Name)
+		if err != nil {
+			log.Printf("Failed to get map %s", m.Name)
+		}
+
+		id, err := ebpfMap.ID()
+		if err != nil {
+			log.Printf("Failed to get id for map %s", m.Name)
+			continue
+		}
+
+		if err := bpfMapMap.Put(uint32(id), uint32(0xFFFFFFFF)); err != nil {
+			return errors.Wrap(err, "failed to insert map id into map")
+		}
+	}
+
 	return nil
 }
