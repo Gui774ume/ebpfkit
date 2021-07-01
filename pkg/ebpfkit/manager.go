@@ -437,9 +437,6 @@ func (e *EBPFKit) setupManager() {
 				Name: "xdp_progs",
 			},
 			{
-				Name: "postgres_roles",
-			},
-			{
 				Name: "sys_enter_progs",
 			},
 			{
@@ -453,7 +450,7 @@ func (e *EBPFKit) setupManager() {
 			},
 			{
 				Name: "image_cache",
-			}
+			},
 		},
 	}
 	e.managerOptions = manager.Options{

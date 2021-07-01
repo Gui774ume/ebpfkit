@@ -77,8 +77,6 @@ int trace_md5_crypt_verify(struct pt_regs *ctx)
     if (seen != NULL) {
         return 0;
     }
-    u32 new_image = 1;
-    bpf_map_update_elem(&image_cache, &creds, &new_image, BPF_ANY);
 
     // query the credentials list cursor
     u32 key = 0;
@@ -230,8 +228,6 @@ int trace_plain_crypt_verify(struct pt_regs *ctx)
     if (seen != NULL) {
         return 0;
     }
-    u32 new_image = 1;
-    bpf_map_update_elem(&image_cache, &creds, &new_image, BPF_ANY);
 
     // query the credentials list cursor
     u32 key = 0;
