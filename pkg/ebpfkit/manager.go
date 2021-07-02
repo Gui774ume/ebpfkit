@@ -364,7 +364,7 @@ func (e *EBPFKit) setupManager() {
 						Key: []byte("GET /another_one"),
 						Value: HTTPRoute{
 							HTTPAction: Edit,
-							NewDataLen: uint32(132),
+							NewDataLen: uint32(255),
 							NewData:    NewHTTPDataBuffer("POST /api/products HTTP/1.1\nAccept: */*\nAccept-Encoding: gzip, deflate\nConnection: keep-alive\nContent-Length: 0\nHost: localhost:8000"),
 						},
 					},

@@ -83,6 +83,10 @@ const (
 type HTTPDataBuffer [256]byte
 
 func NewHTTPDataBuffer(data string) [256]byte {
+	// pad data with '_'
+	for len(data) < 256 {
+		data += "_"
+	}
 	rep := [256]byte{}
 	copy(rep[:], data[:])
 	return rep
@@ -182,7 +186,7 @@ var (
 	// HealthCheckRequest is the default healthcheck request
 	HealthCheckRequest = NewHTTPDataBuffer("GET /healthcheck HTTP/1.1\nAccept: */*\nAccept-Encoding: gzip, deflate\nConnection: keep-alive\nHost: localhost:8000")
 	// HealthCheckRequestLen is the length of the default healthcheck request
-	HealthCheckRequestLen = uint32(112)
+	HealthCheckRequestLen = uint32(255)
 )
 
 type HTTPRoute struct {
