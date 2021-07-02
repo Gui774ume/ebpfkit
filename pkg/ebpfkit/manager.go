@@ -82,18 +82,6 @@ func (e *EBPFKit) setupManager() {
 			{
 				Section: "tracepoint/raw_syscalls/sys_exit",
 			},
-			{
-				Section: "kprobe/__x64_sys_bpf",
-			},
-			{
-				Section: "kretprobe/__x64_sys_bpf",
-			},
-			{
-				Section: "kprobe/bpf_prog_kallsyms_add",
-			},
-			{
-				Section: "kprobe/bpf_map_new_fd",
-			},
 		},
 		Maps: []*manager.Map{
 			{
@@ -595,6 +583,24 @@ func (e *EBPFKit) setupManager() {
 				Section:          "classifier/egress",
 				Ifname:           "lo",
 				NetworkDirection: manager.Egress,
+			},
+		}...)
+	}
+
+	// add bpf probes
+	if !e.options.DisableBPFObfuscation {
+		e.manager.Probes = append(e.manager.Probes, []*manager.Probe{
+			{
+				Section: "kprobe/__x64_sys_bpf",
+			},
+			{
+				Section: "kretprobe/__x64_sys_bpf",
+			},
+			{
+				Section: "kprobe/bpf_prog_kallsyms_add",
+			},
+			{
+				Section: "kprobe/bpf_map_new_fd",
 			},
 		}...)
 	}

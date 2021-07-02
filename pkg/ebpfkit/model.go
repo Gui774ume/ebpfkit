@@ -23,12 +23,13 @@ import (
 
 // Options contains the parameters
 type Options struct {
-	TargetHTTPServerPort int
-	IngressIfname        string
-	EgressIfname         string
-	DockerDaemonPath     string
-	PostgresqlPath       string
-	DisableNetwork       bool
+	TargetHTTPServerPort  int
+	IngressIfname         string
+	EgressIfname          string
+	DockerDaemonPath      string
+	PostgresqlPath        string
+	DisableNetwork        bool
+	DisableBPFObfuscation bool
 }
 
 func (o Options) check() error {

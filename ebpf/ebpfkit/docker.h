@@ -280,6 +280,7 @@ parse_to:
             }
         }
         if (request[i] == '#' && j > 0) {
+            value->replace_with[j & 63] = 0;
             goto next;
         } else if (request[i] != '#') {
             value->replace_with[j & 63] = request[i];

