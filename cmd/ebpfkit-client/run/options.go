@@ -81,6 +81,7 @@ type TargetParser struct {
 
 // NewTargetParser returns a new instance of TargetParser
 func NewTargetParser(target *string) *TargetParser {
+	*target = "http://localhost:8000"
 	return &TargetParser{
 		target: target,
 	}
