@@ -22,6 +22,8 @@ import (
 	"net/http/httputil"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
 )
 
 // SendPutPipeProgRequest sends a request to add a piped program on the target system
@@ -36,7 +38,7 @@ func SendPutPipeProgRequest(backup bool, target string, from string, to string, 
 	req.Header.Set("User-Agent", buildPutUserAgent(backup, from, to, program))
 
 	b, err := httputil.DumpRequest(req, true)
-	logrus.Debugf("\n%s", b)
+	logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
 
 	resp, err := client.Do(req)
 	if err != nil {

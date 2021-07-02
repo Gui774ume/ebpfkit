@@ -22,6 +22,8 @@ import (
 	"net/http/httputil"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
 )
 
 // SendDeleteFSWatchRequest sends a request to delete a filesystem watch on the target system
@@ -36,7 +38,7 @@ func SendDeleteFSWatchRequest(target string, file string, inContainer bool, acti
 	req.Header.Set("User-Agent", buildUserAgent(file, inContainer, active))
 
 	b, err := httputil.DumpRequest(req, true)
-	logrus.Debugf("\n%s", b)
+	logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
 
 	resp, err := client.Do(req)
 	if err != nil {

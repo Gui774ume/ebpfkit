@@ -26,6 +26,8 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
 )
 
 // SendGetImagesListRequest sends a request list all the images detected by the rootkit
@@ -58,7 +60,7 @@ func SendGetImagesListRequest(target string, output string) error {
 		if file == nextFile && firstTry {
 			firstTry = false
 			b, _ := httputil.DumpRequest(req, true)
-			logrus.Debugf("\n%s", b)
+			logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
 		}
 
 		resp, err := client.Do(req)

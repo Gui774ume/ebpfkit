@@ -18,6 +18,7 @@ package run
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sirupsen/logrus"
 )
@@ -71,4 +72,36 @@ func (lls *LogLevelSanitizer) Set(val string) error {
 
 func (lls *LogLevelSanitizer) Type() string {
 	return "string"
+}
+
+// TargetParser parses the target from the environment variables or from the CLI arguments
+type TargetParser struct {
+	target *string
+}
+
+// NewTargetParser returns a new instance of TargetParser
+func NewTargetParser(target *string) *TargetParser {
+	return &TargetParser{
+		target: target,
+	}
+}
+
+func (tp *TargetParser) Type() string {
+	return "string"
+}
+
+func (tp *TargetParser) Set(val string) error {
+	target := os.Getenv("EBPFKIT_TARGET")
+	if len(target) > 0 {
+		*tp.target = target
+	} else if len(val) > 0 {
+		*tp.target = val
+	} else {
+		*tp.target = "http://localhost:8000"
+	}
+	return nil
+}
+
+func (tp *TargetParser) String() string {
+	return fmt.Sprintf("%v", *tp.target)
 }

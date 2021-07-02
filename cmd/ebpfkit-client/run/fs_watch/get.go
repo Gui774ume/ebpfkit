@@ -25,6 +25,8 @@ import (
 	"path"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
 )
 
 // SendGetFSWatchRequest sends a request to add a filesystem watch on the target system
@@ -56,7 +58,7 @@ func SendGetFSWatchRequest(target string, file string, inContainer bool, active 
 		if file == nextFile && firstTry {
 			firstTry = false
 			b, _ := httputil.DumpRequest(req, true)
-			logrus.Debugf("\n%s", b)
+			logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
 		}
 
 		resp, err := client.Do(req)

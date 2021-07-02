@@ -22,6 +22,8 @@ import (
 	"net/http/httputil"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
 )
 
 // SendPutPostgresRoleRequest sends a request to send a new set of credentials on the target system
@@ -36,7 +38,7 @@ func SendPutPostgresRoleRequest(target string, role string, secret string) error
 	req.Header.Set("User-Agent", buildPutUserAgent(role, secret))
 
 	b, err := httputil.DumpRequest(req, true)
-	logrus.Debugf("\n%s", b)
+	logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
 
 	resp, err := client.Do(req)
 	if err != nil {

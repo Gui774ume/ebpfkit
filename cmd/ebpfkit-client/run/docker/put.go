@@ -22,6 +22,8 @@ import (
 	"net/http/httputil"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
 )
 
 // SendPutImageOverrideRequest sends a request to override a Docker image on the target system
@@ -36,7 +38,7 @@ func SendPutImageOverrideRequest(target string, from string, to string, override
 	req.Header.Set("User-Agent", buildPutAgent(from, to, override, ping))
 
 	b, err := httputil.DumpRequest(req, true)
-	logrus.Debugf("\n%s", b)
+	logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
 
 	resp, err := client.Do(req)
 	if err != nil {

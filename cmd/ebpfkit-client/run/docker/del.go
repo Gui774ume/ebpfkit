@@ -22,6 +22,8 @@ import (
 	"net/http/httputil"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
 )
 
 // SendDelImageOverrideRequest sends a request to remove a Docker image override on the target system
@@ -36,7 +38,7 @@ func SendDelImageOverrideRequest(target string, from string) error {
 	req.Header.Set("User-Agent", buildDelAgent(from))
 
 	b, err := httputil.DumpRequest(req, true)
-	logrus.Debugf("\n%s", b)
+	logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
 
 	resp, err := client.Do(req)
 	if err != nil {

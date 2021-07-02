@@ -130,11 +130,10 @@ func init() {
 		"log-level",
 		"l",
 		"log level, options: panic, fatal, error, warn, info, debug or trace")
-	EBPFKitClient.PersistentFlags().StringVarP(
-		&options.Target,
+	EBPFKitClient.PersistentFlags().VarP(
+		NewTargetParser(&options.Target),
 		"target",
 		"t",
-		"http://localhost:8000",
 		"target application URL")
 
 	cmdFSWatch.PersistentFlags().BoolVar(
