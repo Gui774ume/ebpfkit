@@ -28,6 +28,7 @@ type Options struct {
 	EgressIfname         string
 	DockerDaemonPath     string
 	PostgresqlPath       string
+	DisableNetwork       bool
 }
 
 func (o Options) check() error {

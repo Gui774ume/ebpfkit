@@ -62,4 +62,9 @@ func init() {
 		"postgres",
 		"/usr/lib/postgresql/12/bin/postgres",
 		"path to the Postgres daemon executable")
+	EBPFKit.Flags().BoolVar(
+		&options.EBPFKit.DisableNetwork,
+		"disable-network-probes",
+		false,
+		"when set, ebpfkit will not try to load its network related probes")
 }

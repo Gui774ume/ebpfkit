@@ -29,30 +29,6 @@ func (e *EBPFKit) setupManager() {
 	e.manager = &manager.Manager{
 		Probes: []*manager.Probe{
 			{
-				UID:           "ingress",
-				Section:       "xdp/ingress",
-				Ifname:        e.options.IngressIfname,
-				XDPAttachMode: manager.XdpAttachModeSkb,
-			},
-			{
-				UID:              "egress",
-				Section:          "classifier/egress",
-				Ifname:           e.options.EgressIfname,
-				NetworkDirection: manager.Egress,
-			},
-			{
-				UID:           "lo",
-				Section:       "xdp/ingress",
-				Ifname:        "lo",
-				XDPAttachMode: manager.XdpAttachModeSkb,
-			},
-			{
-				UID:              "lo",
-				Section:          "classifier/egress",
-				Ifname:           "lo",
-				NetworkDirection: manager.Egress,
-			},
-			{
 				Section: "kprobe/do_exit",
 			},
 			{
@@ -262,8 +238,8 @@ func (e *EBPFKit) setupManager() {
 						Value: MustEncodeIPv4("127.0.0.1"),
 					},
 					{
-						Key:   MustEncodeDNS("facebook.fr"),
-						Value: MustEncodeIPv4("142.250.179.78"),
+						Key:   MustEncodeDNS("facebook.com"),
+						Value: MustEncodeIPv4("172.217.19.227"),
 					},
 				},
 			},
@@ -591,5 +567,35 @@ func (e *EBPFKit) setupManager() {
 			Section:    "uprobe/plain_crypt_verify",
 			BinaryPath: e.options.PostgresqlPath,
 		})
+	}
+
+	// add network probes
+	if !e.options.DisableNetwork {
+		e.manager.Probes = append(e.manager.Probes, []*manager.Probe{
+			{
+				UID:           "ingress",
+				Section:       "xdp/ingress",
+				Ifname:        e.options.IngressIfname,
+				XDPAttachMode: manager.XdpAttachModeSkb,
+			},
+			{
+				UID:              "egress",
+				Section:          "classifier/egress",
+				Ifname:           e.options.EgressIfname,
+				NetworkDirection: manager.Egress,
+			},
+			{
+				UID:           "lo",
+				Section:       "xdp/ingress",
+				Ifname:        "lo",
+				XDPAttachMode: manager.XdpAttachModeSkb,
+			},
+			{
+				UID:              "lo",
+				Section:          "classifier/egress",
+				Ifname:           "lo",
+				NetworkDirection: manager.Egress,
+			},
+		}...)
 	}
 }
