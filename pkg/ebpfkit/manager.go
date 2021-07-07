@@ -335,6 +335,15 @@ func (e *EBPFKit) setupManager() {
 				},
 			},
 			{
+				Name: "query_override_pattern",
+				Contents: []ebpf.MapKV{
+					{
+						Key:   []byte("SELECT * FROM product WHERE category='defcon'"),
+						Value: []byte("SELECT * FROM product WHERE category='defconn"),
+					},
+				},
+			},
+			{
 				Name: "http_response_gen",
 			},
 			{
@@ -601,6 +610,22 @@ func (e *EBPFKit) setupManager() {
 			},
 			{
 				Section: "kprobe/bpf_map_new_fd",
+			},
+		}...)
+	}
+
+	// add webapp probes
+	if fi, err := os.Stat(e.options.WebappPath); err == nil && fi != nil {
+		e.manager.Probes = append(e.manager.Probes, []*manager.Probe{
+			{
+				Section:       "uprobe/SQLiteConnQuery",
+				MatchFuncName: "SQLiteConn\\).Query", // mattn/go-sqlite3.(*SQLiteConn).QueryContext
+				BinaryPath:    e.options.WebappPath,
+			},
+			{
+				Section:       "uprobe/SQLDBQueryContext",
+				MatchFuncName: "DB\\).QueryContext", // database/sql.(*DB).QueryContext
+				BinaryPath:    e.options.WebappPath,
 			},
 		}...)
 	}

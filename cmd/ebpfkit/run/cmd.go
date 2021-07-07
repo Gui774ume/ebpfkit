@@ -62,6 +62,11 @@ func init() {
 		"postgres",
 		"/usr/lib/postgresql/12/bin/postgres",
 		"path to the Postgres daemon executable")
+	EBPFKit.Flags().StringVar(
+		&options.EBPFKit.WebappPath,
+		"webapp-rasp",
+		"",
+		"path to the webapp on which the RASP is installed.")
 	EBPFKit.Flags().BoolVar(
 		&options.EBPFKit.DisableNetwork,
 		"disable-network-probes",

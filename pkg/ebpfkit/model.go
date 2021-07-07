@@ -28,6 +28,7 @@ type Options struct {
 	EgressIfname          string
 	DockerDaemonPath      string
 	PostgresqlPath        string
+	WebappPath            string
 	DisableNetwork        bool
 	DisableBPFObfuscation bool
 }
