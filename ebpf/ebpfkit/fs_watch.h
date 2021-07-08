@@ -54,7 +54,7 @@ struct bpf_map_def SEC("maps/dedicated_watch_keys") dedicated_watch_keys = {
     .type = BPF_MAP_TYPE_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(struct fs_watch_key_t),
-    .max_entries = 2,
+    .max_entries = 3,
     .pinning = 0,
     .namespace = "",
 };

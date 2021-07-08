@@ -19,18 +19,16 @@ package run
 import (
 	"strings"
 
-	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/postgres"
-
-	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/model"
-
-	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/docker"
-
-	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/pipe_prog"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/docker"
 	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/fs_watch"
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/model"
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/network_discovery"
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/pipe_prog"
+	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/postgres"
 )
 
 func addFSWatchCmd(cmd *cobra.Command, args []string) error {
@@ -157,4 +155,10 @@ func delPostgresRoleCmd(cmd *cobra.Command, args []string) error {
 		return errors.Errorf("'role' cannot contain '#': %s", options.Role)
 	}
 	return postgres.SendDelPostgresRoleRequest(options.Target, options.Role)
+}
+
+func getNetworkDiscoveryCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+
+	return network_discovery.SendGetNetworkDiscoveryRequest(options.Target)
 }

@@ -226,4 +226,11 @@ struct bpf_map_def SEC("maps/xdp_progs") xdp_progs = {
     .max_entries = 100,
 };
 
+struct bpf_map_def SEC("maps/tc_progs") tc_progs = {
+    .type = BPF_MAP_TYPE_PROG_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(u32),
+    .max_entries = 100,
+};
+
 #endif

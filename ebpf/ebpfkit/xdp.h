@@ -8,8 +8,8 @@
 #ifndef _XDP_H_
 #define _XDP_H_
 
-SEC("xdp/ingress")
-int xdp_ingress(struct xdp_md *ctx) {
+SEC("xdp/ingress_dispatch")
+int xdp_ingress_dispatch(struct xdp_md *ctx) {
     struct cursor c;
     struct pkt_ctx_t pkt;
     int ret = parse_xdp_packet(ctx, &c, &pkt);
@@ -34,6 +34,24 @@ int xdp_ingress(struct xdp_md *ctx) {
             break;
     }
 
+    return XDP_PASS;
+}
+
+SEC("xdp/ingress")
+int xdp_ingress(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet_no_l7(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    // monitor ingress traffic for IPV4 + TCP or UDP
+    if (pkt.ipv4->protocol == IPPROTO_TCP || pkt.ipv4->protocol == IPPROTO_UDP) {
+        monitor_flow_xdp(&pkt);
+    }
+
+    bpf_tail_call(ctx, &xdp_progs, XDP_DISPATCH);
     return XDP_PASS;
 }
 

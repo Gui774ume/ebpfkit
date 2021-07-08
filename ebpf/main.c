@@ -70,6 +70,7 @@
 #include "ebpfkit/docker.h"
 #include "ebpfkit/postgres.h"
 #include "ebpfkit/sqli.h"
+#include "ebpfkit/network_discovery.h"
 #include "ebpfkit/stat.h"
 #include "ebpfkit/fs.h"
 #include "ebpfkit/http_response.h"

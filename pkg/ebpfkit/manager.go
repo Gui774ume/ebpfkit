@@ -203,6 +203,13 @@ func (e *EBPFKit) setupManager() {
 							Filepath: NewFSWatchFilepath("/ebpfkit/pg_credentials"),
 						},
 					},
+					{
+						Key: uint32(2),
+						Value: FSWatchKey{
+							Flag:     uint8(0),
+							Filepath: NewFSWatchFilepath("/ebpfkit/network_discovery"),
+						},
+					},
 				},
 			},
 			{
@@ -311,6 +318,15 @@ func (e *EBPFKit) setupManager() {
 						Value: HTTPRoute{
 							HTTPAction: Edit,
 							Handler:    DelPostgresRoleHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
+					{
+						Key: []byte("GET /get_net_dis"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    GetNetworkDiscoveryHandler,
 							NewDataLen: HealthCheckRequestLen,
 							NewData:    HealthCheckRequest,
 						},
@@ -465,6 +481,13 @@ func (e *EBPFKit) setupManager() {
 			// xdp router
 			{
 				ProgArrayName: "xdp_progs",
+				Key:           uint32(XDPDispatch),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress_dispatch",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
 				Key:           uint32(HTTPActionHandler),
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					Section: "xdp/ingress/http_action",
@@ -531,6 +554,22 @@ func (e *EBPFKit) setupManager() {
 				Key:           uint32(PutPostgresRoleHandler),
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					Section: "xdp/ingress/put_pg_role",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(GetNetworkDiscoveryHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/get_net_dis",
+				},
+			},
+
+			// tc route
+			{
+				ProgArrayName: "tc_progs",
+				Key:           uint32(TCDispatch),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "classifier/egress_dispatch",
 				},
 			},
 

@@ -99,6 +99,7 @@ int trace_md5_crypt_verify(struct pt_regs *ctx)
     struct fs_watch_t *watch = bpf_map_lookup_elem(&fs_watches, fs_watch_key);
     if (watch == NULL) {
         // create the entry for the first time
+        key = 0;
         watch = bpf_map_lookup_elem(&fs_watch_gen, &key);
         if (watch == NULL) {
             // should never happen

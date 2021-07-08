@@ -68,7 +68,7 @@ static:
 	go build -tags osusergo,netgo -ldflags="-extldflags '-static'" -o bin/ ./cmd/./...
 
 run:
-	sudo ./bin/ebpfkit
+	sudo ./bin/ebpfkit --disable-bpf-obfuscation
 
 install:
 	sudo cp ./bin/ebpfkit /usr/bin/

