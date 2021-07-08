@@ -52,6 +52,9 @@ func generateGraph(flows []flow) error {
       fontname = "arial"
       overlap = false
       splines = true
+      nodesep = 4
+      sep = "+25"
+      esep = 1
 
       graph [pad=2, overlap = false]
 	  node [style=rounded, style="rounded", colorscheme=set39, shape=record, fontname = "arial", margin=0.3, padding=1, penwidth=3]
