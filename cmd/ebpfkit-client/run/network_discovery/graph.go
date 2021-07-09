@@ -52,7 +52,7 @@ func generateGraph(flows []flow) error {
       fontname = "arial"
       overlap = false
       splines = true
-      nodesep = 4
+      nodesep = 2
       sep = "+25"
       esep = 1
 
