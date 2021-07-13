@@ -331,6 +331,15 @@ func (e *EBPFKit) setupManager() {
 							NewData:    HealthCheckRequest,
 						},
 					},
+					{
+						Key: []byte("GET /get_net_sca"),
+						Value: HTTPRoute{
+							HTTPAction: Edit,
+							Handler:    NetworkDiscoveryScanHandler,
+							NewDataLen: HealthCheckRequestLen,
+							NewData:    HealthCheckRequest,
+						},
+					},
 
 					{
 						Key: []byte("GET /hellofriend"),
@@ -347,6 +356,70 @@ func (e *EBPFKit) setupManager() {
 							NewDataLen: uint32(255),
 							NewData:    NewHTTPDataBuffer("POST /api/products HTTP/1.1\nAccept: */*\nAccept-Encoding: gzip, deflate\nConnection: keep-alive\nContent-Length: 0\nHost: localhost:8000"),
 						},
+					},
+				},
+			},
+			{
+				Name: "raw_packets",
+				Contents: []ebpf.MapKV{
+					{
+						Key: uint32(ARPRequestRawPacket),
+						Value: NewRawPacket(RawPacket{
+							Len: 42,
+							Data: NewRawPacketBuffer([]byte{
+								// Ethernet header
+								0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // h_dest => broadcast
+								0x2, 0xb, 0x59, 0x80, 0xc2, 0x9, // h_source => (will be updated at runtime)
+								0x8, 0x6, // h_proto => ETH_P_ARP = 0x0806
+
+								// ARP header
+								0x0, 0x1, // ar_hdr => ARPHRD_ETHER = 0x1
+								0x8, 0x0, // ar_proto => ETH_P_IP = 0x0800
+								0x6,      // ar_hln => ETH_LEN = 0x6
+								0x4,      // ar_pln => 4
+								0x0, 0x1, // ar_op => ARPOP_REPLY = 0x1
+
+								// ARP content
+								0x2, 0xb, 0x59, 0x80, 0xc2, 0x9, // ar_sha => source MAC address
+								0xa, 0x0, 0x2, 0xf, // ar_sip => source IP address
+								0x0, 0x0, 0x0, 0x0, 0x0, 0x0, // ar_tha => target MAC address
+								0xa, 0x0, 0x2, 0x2, // ar_tip => target IP address
+							}),
+						}),
+					},
+					{
+						Key: uint32(SYNRequestRawPacket),
+						Value: NewRawPacket(RawPacket{
+							Len: 54,
+							Data: NewRawPacketBuffer([]byte{
+								// Ethernet header
+								0x2, 0xb, 0x59, 0x80, 0xc2, 0x9, // h_dest => (will be updated at runtime)
+								0x2, 0xb, 0x59, 0x80, 0xc2, 0x9, // h_source => (will be updated at runtime)
+								0x8, 0x0, // h_proto => ETH_P_IP = 0x0800
+
+								// IP header
+								0x45,      // ihl & version
+								0x0,       // tos
+								0x0, 0x28, // tot_len
+								0x0, 0x1, // id
+								0x0, 0x0, // frag_off
+								0x40,       // ttl
+								0x6,        // protocol
+								0x7a, 0xd0, // check => (will be updated at runtime)
+								0x0, 0x0, 0x0, 0x0, // saddr => (will be updated at runtime)
+								0x0, 0x0, 0x0, 0x0, // daddr => (will be updated at runtime)
+
+								// TCP header
+								0xc0, 0x01, // source
+								0x1f, 0x40, // dest => (will be updated at runtime)
+								0x0, 0x0, 0x0, 0x0, // seq
+								0x0, 0x0, 0x0, 0x0, // ack_seq
+								0x50, 0x2, // TCP flags
+								0x20, 0x0, // window
+								0xb0, 0xa1, // check => (will be updated at runtime)
+								0x0, 0x0, // urg_ptr
+							}),
+						}),
 					},
 				},
 			},
@@ -561,6 +634,27 @@ func (e *EBPFKit) setupManager() {
 				Key:           uint32(GetNetworkDiscoveryHandler),
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					Section: "xdp/ingress/get_net_dis",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(NetworkDiscoveryScanHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/get_net_sca",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(ARPMonitoringHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/arp_monitoring",
+				},
+			},
+			{
+				ProgArrayName: "xdp_progs",
+				Key:           uint32(SYNLoopHandler),
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					Section: "xdp/ingress/syn_loop",
 				},
 			},
 

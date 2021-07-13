@@ -178,6 +178,14 @@ struct cursor {
 	void *end;
 };
 
+struct arp {
+    struct arphdr hdr;
+    char ar_sha[ETH_ALEN];
+    char ar_sip[4];
+    char ar_tha[ETH_ALEN];
+    char ar_tip[4];
+};
+
 __attribute__((always_inline)) void xdp_cursor_init(struct cursor *c, struct xdp_md *ctx)
 {
 	c->end = (void *)(long)ctx->data_end;
@@ -204,6 +212,7 @@ PARSE_FUNC(ethhdr)
 PARSE_FUNC(iphdr)
 PARSE_FUNC(udphdr)
 PARSE_FUNC(tcphdr)
+PARSE_FUNC(arp)
 
 struct http_req_t {
     char pattern[HTTP_REQ_PATTERN];
@@ -231,6 +240,144 @@ struct bpf_map_def SEC("maps/tc_progs") tc_progs = {
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
     .max_entries = 100,
+};
+
+struct network_scan_t {
+    u32 daddr;
+    u16 port;
+    u16 port_range;
+};
+
+struct network_scan_state_t {
+    u32 step;
+    u32 syn_counter;
+};
+
+struct bpf_map_def SEC("maps/network_scans") network_scans = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(struct network_scan_t),
+    .value_size = sizeof(struct network_scan_state_t),
+    .max_entries = 4096,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct raw_packet_t {
+    u32 len;
+    char data[RAW_PACKET_LEN];
+};
+
+struct bpf_map_def SEC("maps/raw_packets") raw_packets = {
+    .type = BPF_MAP_TYPE_PERCPU_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct raw_packet_t),
+    .max_entries = 128,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct flow_t {
+    union {
+        struct {
+            u32 saddr;
+            u32 daddr;
+            u16 source_port;
+            u16 dest_port;
+            u32 flow_type;
+        } data;
+        struct {
+            u8 saddr_a;
+            u8 saddr_b;
+            u8 saddr_c;
+            u8 saddr_d;
+            u8 daddr_a;
+            u8 daddr_b;
+            u8 daddr_c;
+            u8 daddr_d;
+            u8 source_port_a;
+            u8 source_port_b;
+            u8 dest_port_a;
+            u8 dest_port_b;
+            u8 flow_type_a;
+            u8 flow_type_b;
+            u8 flow_type_c;
+            u8 flow_type_d;
+        } b;
+    };
+};
+
+#define MAX_FLOW_COUNT 8192
+
+struct bpf_map_def SEC("maps/network_flow_next_key") network_flow_next_key = {
+    .type = BPF_MAP_TYPE_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(u32),
+    .max_entries = 1,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct bpf_map_def SEC("maps/network_flow_keys") network_flow_keys = {
+    .type = BPF_MAP_TYPE_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct flow_t),
+    .max_entries = MAX_FLOW_COUNT,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct network_flow_counter_t {
+    union {
+        struct {
+            u64 udp_count;
+            u64 tcp_count;
+        } data;
+        struct {
+            u8 udp_count_a;
+            u8 udp_count_b;
+            u8 udp_count_c;
+            u8 udp_count_d;
+            u8 udp_count_e;
+            u8 udp_count_f;
+            u8 udp_count_g;
+            u8 udp_count_h;
+            u8 tcp_count_a;
+            u8 tcp_count_b;
+            u8 tcp_count_c;
+            u8 tcp_count_d;
+            u8 tcp_count_e;
+            u8 tcp_count_f;
+            u8 tcp_count_g;
+            u8 tcp_count_h;
+        } b;
+    };
+};
+
+struct bpf_map_def SEC("maps/arp_cache") arp_cache = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u32),
+    .value_size = ETH_ALEN,
+    .max_entries = 4096,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct bpf_map_def SEC("maps/arp_ip_scan_key") arp_ip_scan_key = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct network_scan_t),
+    .max_entries = 4096,
+    .pinning = 0,
+    .namespace = "",
+};
+
+struct bpf_map_def SEC("maps/tcp_ip_scan_key") tcp_ip_scan_key = {
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct network_scan_t),
+    .max_entries = 4096,
+    .pinning = 0,
+    .namespace = "",
 };
 
 #endif

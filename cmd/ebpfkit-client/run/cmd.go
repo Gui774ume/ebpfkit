@@ -26,23 +26,33 @@ var EBPFKitClient = &cobra.Command{
 }
 
 var cmdFSWatch = &cobra.Command{
-	Use: "fs_watch",
+	Use:   "fs_watch",
+	Short: "file system watches",
+	Long:  "fs_watch can be used to exfiltrate file content",
 }
 
 var cmdPipeProg = &cobra.Command{
-	Use: "pipe_prog",
+	Use:   "pipe_prog",
+	Short: "piped programs configuration",
+	Long:  "pipe_prog can be used to intercept and control pipes between two processes",
 }
 
 var cmdDockerProg = &cobra.Command{
-	Use: "docker",
+	Use:   "docker",
+	Short: "Docker image override configuration",
+	Long:  "the docker command can be used to configure how Docker images are overridden at runtime",
 }
 
 var cmdPostgresProg = &cobra.Command{
-	Use: "postgres",
+	Use:   "postgres",
+	Short: "postgresql authentication control",
+	Long:  "the postgres command can be used to exfiltrate Postgresql password hashes and change them at runtime",
 }
 
 var cmdNetworkDiscoveryProg = &cobra.Command{
-	Use: "network_discovery",
+	Use:   "network_discovery",
+	Short: "network discovery configuration",
+	Long:  "network_discovery can be used to scan the network of the target system",
 }
 
 var cmdAddFSWatch = &cobra.Command{
@@ -124,6 +134,13 @@ var cmdGetNetworkDiscovery = &cobra.Command{
 	Short: "get network discovery data",
 	Long:  "get returns the list of data collected by the network discovery feature on the target system",
 	RunE:  getNetworkDiscoveryCmd,
+}
+
+var cmdGetNetworkDiscoveryScan = &cobra.Command{
+	Use:   "scan",
+	Short: "scan the network of the target system",
+	Long:  "scan triggers a network SYN scan on the target system with the provided parameters",
+	RunE:  getNetworkDiscoveryScanCmd,
 }
 
 var cmdDelPGBackdoorSecret = &cobra.Command{
@@ -253,6 +270,33 @@ func init() {
 	cmdPostgresProg.AddCommand(cmdDelPGBackdoorSecret)
 	EBPFKitClient.AddCommand(cmdPostgresProg)
 
+	cmdGetNetworkDiscovery.PersistentFlags().BoolVar(
+		&options.ActiveDiscovery,
+		"active",
+		false,
+		"defines if flows discovered by the active scan should be shown")
+	cmdGetNetworkDiscovery.PersistentFlags().BoolVar(
+		&options.PassiveDiscovery,
+		"passive",
+		false,
+		"defines if flows discovered by the passive scan should be shown")
+	cmdGetNetworkDiscoveryScan.PersistentFlags().StringVar(
+		&options.IP,
+		"ip",
+		"",
+		"defines the starting IP address of the network scan")
+	cmdGetNetworkDiscoveryScan.PersistentFlags().StringVar(
+		&options.Port,
+		"port",
+		"",
+		"defines the starting port of the network scan")
+	cmdGetNetworkDiscoveryScan.PersistentFlags().StringVar(
+		&options.Range,
+		"range",
+		"20",
+		"defines the number of ports to scan, starting at the port defined by 'port'")
+
 	cmdNetworkDiscoveryProg.AddCommand(cmdGetNetworkDiscovery)
+	cmdNetworkDiscoveryProg.AddCommand(cmdGetNetworkDiscoveryScan)
 	EBPFKitClient.AddCommand(cmdNetworkDiscoveryProg)
 }

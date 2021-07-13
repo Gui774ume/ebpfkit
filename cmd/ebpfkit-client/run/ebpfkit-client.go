@@ -17,6 +17,7 @@ limitations under the License.
 package run
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -160,5 +161,22 @@ func delPostgresRoleCmd(cmd *cobra.Command, args []string) error {
 func getNetworkDiscoveryCmd(cmd *cobra.Command, args []string) error {
 	logrus.SetLevel(options.LogLevel)
 
-	return network_discovery.SendGetNetworkDiscoveryRequest(options.Target)
+	return network_discovery.SendGetNetworkDiscoveryRequest(options.Target, options.ActiveDiscovery, options.PassiveDiscovery)
+}
+
+var ipv4Regex = `^(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4})`
+
+func getNetworkDiscoveryScanCmd(cmd *cobra.Command, args []string) error {
+	logrus.SetLevel(options.LogLevel)
+	if len(options.Range) == 0 || len(options.Range) >= 6 {
+		return errors.Errorf("invalid 'range' value: %s (has ton be above 0 and below 100k)", options.Range)
+	}
+	match, _ := regexp.MatchString(ipv4Regex, options.IP)
+	if !match {
+		return errors.Errorf("invalid 'IP' format (expected X.X.X.X): %s", options.IP)
+	}
+	if len(options.Port) == 0 || len(options.Port) >= 6 {
+		return errors.Errorf("invlid 'Port' value: %s", options.Port)
+	}
+	return network_discovery.SendNetworkDiscoveryScanRequest(options.Target, options.IP, options.Port, options.Range)
 }

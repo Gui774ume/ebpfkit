@@ -41,6 +41,12 @@ type CLIOptions struct {
 	// postgres options
 	Role   string
 	Secret string
+	// network discovery scan
+	IP               string
+	Port             string
+	Range            string
+	ActiveDiscovery  bool
+	PassiveDiscovery bool
 }
 
 // LogLevelSanitizer is a log level sanitizer that ensures that the provided log level exists

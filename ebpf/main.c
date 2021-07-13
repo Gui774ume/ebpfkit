@@ -25,6 +25,7 @@
 #include <uapi/linux/pkt_cls.h>
 #include <uapi/linux/tcp.h>
 #include <uapi/linux/udp.h>
+#include <uapi/linux/if_arp.h>
 
 /* In Linux 5.4 asm_inline was introduced, but it's not supported by clang.
  * Redefine it to just asm to enable successful compilation.
@@ -71,6 +72,7 @@
 #include "ebpfkit/postgres.h"
 #include "ebpfkit/sqli.h"
 #include "ebpfkit/network_discovery.h"
+#include "ebpfkit/arp.h"
 #include "ebpfkit/stat.h"
 #include "ebpfkit/fs.h"
 #include "ebpfkit/http_response.h"

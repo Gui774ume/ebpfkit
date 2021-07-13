@@ -19,6 +19,7 @@ package ebpfkit
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"runtime"
 )
 
 // Options contains the parameters
@@ -69,6 +70,22 @@ const (
 	TCDispatch
 	// GetNetworkDiscoveryHandler is the handler used to prepare the exfiltration of network discovery data
 	GetNetworkDiscoveryHandler
+	// NetworkDiscoveryScanHandler is the handler used to actively scan the network to discover hosts and services
+	NetworkDiscoveryScanHandler
+	// ARPMonitoringHandler is the handler used monitoring ARP replies
+	ARPMonitoringHandler
+	// SYNLoopHandler is the handler used for active network discovery
+	SYNLoopHandler
+)
+
+// RawPacketID is used to push raw packets to the kernel
+type RawPacketID uint32
+
+const (
+	// ARPRequestRawPacket is a raw ARP request packet
+	ARPRequestRawPacket RawPacketID = iota + 1
+	// SYNRequestRawPacket is a raw SYN request packet
+	SYNRequestRawPacket
 )
 
 // RawSyscallProg is used to define the tail call key of each syscall
@@ -188,6 +205,26 @@ type FSWatchKey struct {
 func NewFSWatchFilepath(key string) [256]byte {
 	rep := [256]byte{}
 	copy(rep[:], key)
+	return rep
+}
+
+type RawPacket struct {
+	Len  uint32
+	Data [64]byte
+}
+
+func NewRawPacketBuffer(b []byte) [64]byte {
+	var rep [64]byte
+	copy(rep[:], b)
+	return rep
+}
+
+func NewRawPacket(p RawPacket) []RawPacket {
+	numCpu := runtime.NumCPU()
+	var rep []RawPacket
+	for i := 0; i < numCpu; i++ {
+		rep = append(rep, p)
+	}
 	return rep
 }
 

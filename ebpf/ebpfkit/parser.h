@@ -58,6 +58,11 @@ __attribute__((always_inline)) int parse_xdp_packet_no_l7(struct xdp_md *ctx, st
         return -1;
     }
 
+    if (pkt->eth->h_proto == htons(ETH_P_ARP)) {
+        bpf_tail_call(ctx, &xdp_progs, ARP_MONITORING_HANDLER);
+        return -1;
+    }
+
     // we only support IPv4 for now
     if (pkt->eth->h_proto != htons(ETH_P_IP)) {
         return -1;
@@ -70,6 +75,10 @@ __attribute__((always_inline)) int parse_xdp_packet_no_l7(struct xdp_md *ctx, st
     switch (pkt->ipv4->protocol) {
         case IPPROTO_TCP:
             if (!(pkt->tcp = parse_tcphdr(c))) {
+                return -1;
+            }
+            if (pkt->tcp->dest == htons(COOL)) {
+                bpf_tail_call(ctx, &xdp_progs, SYN_LOOP_HANDLER);
                 return -1;
             }
             break;

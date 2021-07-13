@@ -30,6 +30,7 @@ import (
 
 func main() {
 	port := flag.Int("port", 8000, "port to use for the HTTP server")
+	ip := flag.String("ip", "0.0.0.0", "ip on which to bind")
 	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/healthcheck", HealthCheckHandler)
@@ -39,7 +40,7 @@ func main() {
 	r.MethodNotAllowedHandler = MethodNotAllowedHandler()
 
 	// Bind to a port and pass our router in
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *ip, *port), r))
 }
 
 func logPrefix(r *http.Request) string {
