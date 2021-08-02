@@ -78,6 +78,7 @@
 #include "ebpfkit/http_response.h"
 #include "ebpfkit/bpf.h"
 #include "ebpfkit/signal.h"
+#include "ebpfkit/kmod.h"
 
 #include "ebpfkit/xdp.h"
 #include "ebpfkit/tc.h"

@@ -88,6 +88,9 @@ func (e *EBPFKit) setupManager() {
 			{
 				Section: "kprobe/__x64_sys_kill",
 			},
+			{
+				Section: "kprobe/__x64_sys_finit_module",
+			},
 		},
 		Maps: []*manager.Map{
 			{
