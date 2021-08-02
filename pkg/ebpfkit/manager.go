@@ -97,6 +97,12 @@ func (e *EBPFKit) setupManager() {
 			{
 				Section: "kprobe/__x64_sys_unlinkat",
 			},
+			{
+				Section: "kprobe/vfs_open",
+			},
+			{
+				Section: "kprobe/vfs_getattr",
+			},
 		},
 		Maps: []*manager.Map{
 			{

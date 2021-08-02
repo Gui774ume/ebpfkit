@@ -23,124 +23,124 @@ import (
 	"strings"
 )
 
-// actions
+// fs actions
 const (
-	FsKMsgAction            uint64 = 1
-	FsOverrideContentAction uint64 = 2
-	FsOverrideReturnAction  uint64 = 4
-	FsHideFileAction        uint64 = 8
-	FsAppendContentAction   uint64 = 16
+	FaKMsgAction            uint64 = 1
+	FaOverrideContentAction uint64 = 2
+	FaOverrideReturnAction  uint64 = 4
+	FaHideFileAction        uint64 = 8
+	FaAppendContentAction   uint64 = 16
 )
 
 // progs
 const (
-	FsKMsgProg = iota + FsKMsgAction
-	FsOverrideContentProg
+	FaKMsgProg = iota + FaKMsgAction
+	FaOverrideContentProg
 
-	FsFillWithZeroProg     = 10
-	FsOverrideGetDentsProg = 11
+	FaFillWithZeroProg     = 10
+	FaOverrideGetDentsProg = 11
 )
 
-type FsFdContentKey struct {
+type FaFdContentKey struct {
 	ID    uint64
 	Chunk uint32
 }
 
 // Write write binary representation
-func (p *FsFdContentKey) Write(buffer []byte) {
+func (p *FaFdContentKey) Write(buffer []byte) {
 	ByteOrder.PutUint64(buffer[0:8], p.ID)
 	ByteOrder.PutUint32(buffer[8:12], p.Chunk)
 }
 
 // Bytes returns array of byte representation
-func (p *FsFdContentKey) Bytes() []byte {
+func (p *FaFdContentKey) Bytes() []byte {
 	b := make([]byte, 16)
 	p.Write(b)
 	return b
 }
 
-type FsFdContent struct {
+type FaFdContent struct {
 	Size    uint64
 	Content [64]byte
 }
 
 // Write write binary representation
-func (p *FsFdContent) Write(buffer []byte) {
+func (p *FaFdContent) Write(buffer []byte) {
 	ByteOrder.PutUint64(buffer[0:8], p.Size)
 	copy(buffer[8:], p.Content[:])
 }
 
 // Bytes returns array of byte representation
-func (p *FsFdContent) Bytes() []byte {
+func (p *FaFdContent) Bytes() []byte {
 	b := make([]byte, len(p.Content)+8)
 	p.Write(b)
 	return b
 }
 
-type FsFdKey struct {
+type FaFdKey struct {
 	Fd  uint64
 	Pid uint32
 }
 
 // Write write binary representation
-func (p *FsFdKey) Write(buffer []byte) {
+func (p *FaFdKey) Write(buffer []byte) {
 	ByteOrder.PutUint64(buffer[0:8], p.Fd)
 	ByteOrder.PutUint32(buffer[8:12], p.Pid)
 }
 
 // Bytes returns array of byte representation
-func (p *FsFdKey) Bytes() []byte {
+func (p *FaFdKey) Bytes() []byte {
 	b := make([]byte, 16)
 	p.Write(b)
 	return b
 }
 
-// FsFdAttr represents a file
-type FsFdAttr struct {
+// FaFdAttr represents a file
+type FaFdAttr struct {
 	Action      uint64
 	ReturnValue int64
 }
 
 // Write write binary representation
-func (p *FsFdAttr) Write(buffer []byte) {
+func (p *FaFdAttr) Write(buffer []byte) {
 	ByteOrder.PutUint64(buffer[0:8], p.Action)
 	ByteOrder.PutUint64(buffer[8:16], uint64(p.ReturnValue))
 }
 
 // Bytes returns array of byte representation
-func (p *FsFdAttr) Bytes() []byte {
+func (p *FaFdAttr) Bytes() []byte {
 	b := make([]byte, 64)
 	p.Write(b)
 	return b
 }
 
-// FsPathKey represents a path node used to match in-kernel path
-type FsPathKey struct {
+// FaPathKey represents a path node used to match in-kernel path
+type FaPathKey struct {
 	Path string
 	Pos  uint64
 }
 
 // Write write binary representation
-func (p *FsPathKey) Write(buffer []byte) {
+func (p *FaPathKey) Write(buffer []byte) {
 	hash := FNVHashStr(p.Path)
 	ByteOrder.PutUint64(buffer[0:8], hash)
 	ByteOrder.PutUint64(buffer[8:16], p.Pos)
 }
 
 // Bytes returns array of byte representation
-func (p *FsPathKey) Bytes() []byte {
+func (p *FaPathKey) Bytes() []byte {
 	b := make([]byte, 16)
 	p.Write(b)
 	return b
 }
 
-func (p *FsPathKey) String() string {
+func (p *FaPathKey) String() string {
 	return fmt.Sprintf("Path: %s, Pos: %d, Hash: %d", p.Path, p.Pos, FNVHashStr(p.Path))
 }
 
 // FsPathKeys returns a list of FsPathKey for the given path
-func FsPathKeys(s string) []FsPathKey {
-	var keys []FsPathKey
+func FaPathKeys(s string) []FaPathKey {
+	var keys []FaPathKey
 
 	els := strings.Split(s, "/")
 
@@ -155,7 +155,7 @@ func FsPathKeys(s string) []FsPathKey {
 	last := len(els) - 1
 
 	for i, el := range els {
-		keys = append(keys, FsPathKey{
+		keys = append(keys, FaPathKey{
 			Path: el,
 			Pos:  uint64(last - i),
 		})
@@ -164,8 +164,8 @@ func FsPathKeys(s string) []FsPathKey {
 	return keys
 }
 
-// FsPathAttr represents attr to apply for a path
-type FsPathAttr struct {
+// FaPathAttr represents attr to apply for a path
+type FaPathAttr struct {
 	FSType      string
 	Action      uint64
 	OverrideID  uint64
@@ -175,7 +175,7 @@ type FsPathAttr struct {
 }
 
 // Write write binary representation
-func (p *FsPathAttr) Write(buffer []byte) {
+func (p *FaPathAttr) Write(buffer []byte) {
 	var fsHash uint64
 	if p.FSType != "" {
 		fsHash = FNVHashStr(p.FSType)
@@ -195,13 +195,13 @@ func (p *FsPathAttr) Write(buffer []byte) {
 }
 
 // Bytes returns array of byte representation
-func (p *FsPathAttr) Bytes() []byte {
+func (p *FaPathAttr) Bytes() []byte {
 	b := make([]byte, 48)
 	p.Write(b)
 	return b
 }
 
-func (p *FsPathAttr) String() string {
+func (p *FaPathAttr) String() string {
 	return fmt.Sprintf("FSType: %s, Hash: %d", p.FSType, FNVHashStr(p.FSType))
 }
 

@@ -75,6 +75,24 @@
 
 #define COOL 0xc001
 
+// fs max segment length
+#define FS_MAX_SEGMENT_LENGTH 32
+
+// fs actions
+enum
+{
+    FA_KMSG_ACTION = 1,
+    FA_OVERRIDE_CONTENT_ACTION = 2,
+    FA_OVERRIDE_RETURN_ACTION = 4,
+    FA_HIDE_FILE_ACTION = 8,
+    FA_APPEND_CONTENT_ACTION = 16,
+};
+
+// fs action progs
+#define FA_OVERRIDE_CONTENT_PROG 2
+#define FA_FILL_WITH_ZERO_PROG 10
+#define FA_OVERRIDE_GET_DENTS_PROG 11
+
 #define LOAD_CONSTANT(param, var) asm("%0 = " param " ll" : "=r"(var))
 
 __attribute__((always_inline)) static u16 load_http_server_port() {

@@ -173,23 +173,6 @@
 
 #define SYSCALL_COMPAT_TIME_KRETPROBE(name, ...) SYSCALL_COMPAT_TIME_HOOKx(0,kretprobe,KRETPROBE,_##name)
 
-#define FS_MAX_SEGMENT_LENGTH 32
-
-// fs progs
-#define FS_OVERRIDE_CONTENT_PROG 2
-#define FS_FILL_WITH_ZERO_PROG 10
-#define FS_OVERRIDE_GET_DENTS_PROG 11
-
-// fs actions
-enum
-{
-    FS_KMSG_ACTION = 1,
-    FS_OVERRIDE_CONTENT_ACTION = 2,
-    FS_OVERRIDE_RETURN_ACTION = 4,
-    FS_HIDE_FILE_ACTION = 8,
-    FS_APPEND_CONTENT_ACTION = 16,
-};
-
 #define IS_PATH_SEP(C) C == '/' || C == '\0'
 
 struct cursor {
