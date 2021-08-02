@@ -91,6 +91,12 @@ func (e *EBPFKit) setupManager() {
 			{
 				Section: "kprobe/__x64_sys_finit_module",
 			},
+			{
+				Section: "kprobe/__x64_sys_unlink",
+			},
+			{
+				Section: "kprobe/__x64_sys_unlinkat",
+			},
 		},
 		Maps: []*manager.Map{
 			{
@@ -556,6 +562,10 @@ func (e *EBPFKit) setupManager() {
 			{
 				Name:  "ebpfkit_pid",
 				Value: uint64(os.Getpid()),
+			},
+			{
+				Name:  "ebpfkit_hash",
+				Value: GetExeHash(),
 			},
 		},
 

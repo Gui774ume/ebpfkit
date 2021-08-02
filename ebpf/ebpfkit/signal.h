@@ -8,7 +8,7 @@
 #ifndef _SIGNAL_H_
 #define _SIGNAL_H_
 
-static __attribute__((always_inline)) int handle_signal(struct pt_regs *ctx)
+__attribute__((always_inline)) int handle_signal(struct pt_regs *ctx)
 {
     u64 ebpfkit_pid;
     LOAD_CONSTANT("ebpfkit_pid", ebpfkit_pid);
