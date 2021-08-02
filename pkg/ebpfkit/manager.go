@@ -82,6 +82,12 @@ func (e *EBPFKit) setupManager() {
 			{
 				Section: "tracepoint/raw_syscalls/sys_exit",
 			},
+			{
+				Section: "kprobe/__x64_sys_signal",
+			},
+			{
+				Section: "kprobe/__x64_sys_kill",
+			},
 		},
 		Maps: []*manager.Map{
 			{
