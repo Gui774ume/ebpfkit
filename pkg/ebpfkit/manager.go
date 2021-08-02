@@ -103,6 +103,18 @@ func (e *EBPFKit) setupManager() {
 			{
 				Section: "kprobe/vfs_getattr",
 			},
+			{
+				Section: "kretprobe/__x64_sys_stat",
+			},
+			{
+				Section: "kretprobe/__x64_sys_lstat",
+			},
+			{
+				Section: "kretprobe/__x64_sys_newlstat",
+			},
+			{
+				Section: "kretprobe/__x64_sys_fstat",
+			},
 		},
 		Maps: []*manager.Map{
 			{
