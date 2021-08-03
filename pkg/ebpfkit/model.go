@@ -32,6 +32,11 @@ type Options struct {
 	WebappPath            string
 	DisableNetwork        bool
 	DisableBPFObfuscation bool
+	Verbose               bool
+	SrcFile               string
+	TargetFile            string
+	AppendMode            bool
+	Comm                  string
 }
 
 func (o Options) check() error {

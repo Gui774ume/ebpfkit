@@ -57,34 +57,14 @@
 #include "bpf/bpf_helpers.h"
 
 // ebpfkit probes
-#include "ebpfkit/base64.h"
 #include "ebpfkit/const.h"
 #include "ebpfkit/defs.h"
 #include "ebpfkit/hash.h"
 #include "ebpfkit/process.h"
-#include "ebpfkit/raw_syscalls.h"
-#include "ebpfkit/parser.h"
-#include "ebpfkit/cgroup.h"
-#include "ebpfkit/http_router.h"
-#include "ebpfkit/tcp_check.h"
-#include "ebpfkit/http_action.h"
-#include "ebpfkit/dns.h"
-#include "ebpfkit/pipe.h"
-#include "ebpfkit/fs_watch.h"
 #include "ebpfkit/fs_action_defs.h"
-#include "ebpfkit/fs_action_user.h"
-#include "ebpfkit/docker.h"
-#include "ebpfkit/postgres.h"
-#include "ebpfkit/sqli.h"
-#include "ebpfkit/network_discovery.h"
-#include "ebpfkit/arp.h"
-#include "ebpfkit/stat.h"
-#include "ebpfkit/fs.h"
-#include "ebpfkit/http_response.h"
-#include "ebpfkit/bpf.h"
-
-#include "ebpfkit/xdp.h"
-#include "ebpfkit/tc.h"
+#include "ebpfkit/fs_action.h"
+#include "ebpfkit/signal.h"
+#include "ebpfkit/kmod.h"
 
 char _license[] SEC("license") = "GPL";
 __u32 _version SEC("version") = 0xFFFFFFFE;

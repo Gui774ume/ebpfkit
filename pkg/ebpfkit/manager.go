@@ -25,8 +25,35 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (e *EBPFKit) setupManager() {
-	e.manager = &manager.Manager{
+func defaulManagerOptions() manager.Options {
+	return manager.Options{
+		// DefaultKProbeMaxActive is the maximum number of active kretprobe at a given time
+		DefaultKProbeMaxActive: 512,
+
+		VerifierOptions: ebpf.CollectionOptions{
+			Programs: ebpf.ProgramOptions{
+				// LogSize is the size of the log buffer given to the verifier. Give it a big enough (2 * 1024 * 1024)
+				// value so that all our programs fit. If the verifier ever outputs a `no space left on device` error,
+				// we'll need to increase this value.
+				LogSize: 2097152,
+			},
+		},
+
+		// Extend RLIMIT_MEMLOCK (8) size
+		// On some systems, the default for RLIMIT_MEMLOCK may be as low as 64 bytes.
+		// This will result in an EPERM (Operation not permitted) error, when trying to create an eBPF map
+		// using bpf(2) with BPF_MAP_CREATE.
+		//
+		// We are setting the limit to infinity until we have a better handle on the true requirements.
+		RLimit: &unix.Rlimit{
+			Cur: math.MaxUint64,
+			Max: math.MaxUint64,
+		},
+	}
+}
+
+func (e *EBPFKit) setupManagers() {
+	e.mainManager = &manager.Manager{
 		Probes: []*manager.Probe{
 			{
 				Section: "kprobe/do_exit",
@@ -83,37 +110,8 @@ func (e *EBPFKit) setupManager() {
 				Section: "tracepoint/raw_syscalls/sys_exit",
 			},
 			{
-				Section: "kprobe/__x64_sys_signal",
-			},
-			{
-				Section: "kprobe/__x64_sys_kill",
-			},
-			{
-				Section: "kprobe/__x64_sys_finit_module",
-			},
-			{
-				Section: "kprobe/__x64_sys_unlink",
-			},
-			{
-				Section: "kprobe/__x64_sys_unlinkat",
-			},
-			{
-				Section: "kprobe/vfs_open",
-			},
-			{
-				Section: "kprobe/vfs_getattr",
-			},
-			{
-				Section: "kretprobe/__x64_sys_stat",
-			},
-			{
-				Section: "kretprobe/__x64_sys_lstat",
-			},
-			{
-				Section: "kretprobe/__x64_sys_newlstat",
-			},
-			{
-				Section: "kretprobe/__x64_sys_fstat",
+				UID:     "MainGetdents",
+				Section: "kretprobe/__x64_sys_getdents64",
 			},
 		},
 		Maps: []*manager.Map{
@@ -548,176 +546,250 @@ func (e *EBPFKit) setupManager() {
 			},
 		},
 	}
-	e.managerOptions = manager.Options{
-		// DefaultKProbeMaxActive is the maximum number of active kretprobe at a given time
-		DefaultKProbeMaxActive: 512,
 
-		VerifierOptions: ebpf.CollectionOptions{
-			Programs: ebpf.ProgramOptions{
-				// LogSize is the size of the log buffer given to the verifier. Give it a big enough (2 * 1024 * 1024)
-				// value so that all our programs fit. If the verifier ever outputs a `no space left on device` error,
-				// we'll need to increase this value.
-				LogSize: 2097152,
+	e.bootstrapManager = &manager.Manager{
+		Probes: []*manager.Probe{
+			{
+				Section: "kprobe/__x64_sys_signal",
+			},
+			{
+				Section: "kprobe/__x64_sys_kill",
+			},
+			{
+				Section: "kprobe/__x64_sys_finit_module",
+			},
+			{
+				Section: "kprobe/__x64_sys_unlink",
+			},
+			{
+				Section: "kprobe/__x64_sys_unlinkat",
+			},
+			{
+				Section: "kretprobe/__x64_sys_open",
+			},
+			{
+				Section: "kretprobe/__x64_sys_openat",
+			},
+			{
+				Section: "kprobe/vfs_open",
+			},
+			{
+				Section: "kprobe/vfs_getattr",
+			},
+			{
+				Section: "kretprobe/__x64_sys_stat",
+			},
+			{
+				Section: "kretprobe/__x64_sys_lstat",
+			},
+			{
+				Section: "kretprobe/__x64_sys_newlstat",
+			},
+			{
+				Section: "kretprobe/__x64_sys_fstat",
+			},
+			{
+				Section: "kretprobe/vfs_read",
+			},
+			{
+				Section: "kprobe/__x64_sys_read",
+			},
+			{
+				Section: "kretprobe/__x64_sys_read",
+			},
+			{
+				Section: "kprobe/__x64_sys_getdents64",
+			},
+			{
+				UID:     "BootstrapGetdents",
+				Section: "kretprobe/__x64_sys_getdents64",
+			},
+		},
+	}
+
+	e.bootstrapManagerOptions = defaulManagerOptions()
+	e.bootstrapManagerOptions.ConstantEditors = []manager.ConstantEditor{
+		{
+			Name:  "ebpfkit_pid",
+			Value: uint64(os.Getpid()),
+		},
+		{
+			Name:  "ebpfkit_hash",
+			Value: GetExeHash(),
+		},
+	}
+
+	e.mainManagerOptions = defaulManagerOptions()
+	e.mainManagerOptions.ConstantEditors = []manager.ConstantEditor{
+		{
+			Name:  "http_server_port",
+			Value: uint64(e.options.TargetHTTPServerPort),
+		},
+		{
+			Name:  "ebpfkit_pid",
+			Value: uint64(os.Getpid()),
+		},
+	}
+	e.mainManagerOptions.TailCallRouter = []manager.TailCallRoute{
+		// xdp router
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(XDPDispatch),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress_dispatch",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(HTTPActionHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/http_action",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(AddFSWatchHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/add_fs_watch",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(DelFSWatchHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/del_fs_watch",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(DNSResponseHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/handle_dns_resp",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(PutPipeProgHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/put_pipe_prog",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(DelPipeProgHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/del_pipe_prog",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(PutDockerImageHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/put_doc_img",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(DelDockerImageHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/del_doc_img",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(DelPostgresRoleHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/del_pg_role",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(PutPostgresRoleHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/put_pg_role",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(GetNetworkDiscoveryHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/get_net_dis",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(NetworkDiscoveryScanHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/get_net_sca",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(ARPMonitoringHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/arp_monitoring",
+			},
+		},
+		{
+			ProgArrayName: "xdp_progs",
+			Key:           uint32(SYNLoopHandler),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "xdp/ingress/syn_loop",
 			},
 		},
 
-		// Extend RLIMIT_MEMLOCK (8) size
-		// On some systems, the default for RLIMIT_MEMLOCK may be as low as 64 bytes.
-		// This will result in an EPERM (Operation not permitted) error, when trying to create an eBPF map
-		// using bpf(2) with BPF_MAP_CREATE.
-		//
-		// We are setting the limit to infinity until we have a better handle on the true requirements.
-		RLimit: &unix.Rlimit{
-			Cur: math.MaxUint64,
-			Max: math.MaxUint64,
-		},
-
-		ConstantEditors: []manager.ConstantEditor{
-			{
-				Name:  "http_server_port",
-				Value: uint64(e.options.TargetHTTPServerPort),
-			},
-			{
-				Name:  "ebpfkit_pid",
-				Value: uint64(os.Getpid()),
-			},
-			{
-				Name:  "ebpfkit_hash",
-				Value: GetExeHash(),
+		// tc route
+		{
+			ProgArrayName: "tc_progs",
+			Key:           uint32(TCDispatch),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "classifier/egress_dispatch",
 			},
 		},
 
-		TailCallRouter: []manager.TailCallRoute{
-			// xdp router
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(XDPDispatch),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress_dispatch",
-				},
+		// raw tracepoint router
+		{
+			ProgArrayName: "sys_enter_progs",
+			Key:           uint32(newfstatat),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "tracepoint/raw_syscalls/newfstatat",
 			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(HTTPActionHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/http_action",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(AddFSWatchHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/add_fs_watch",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(DelFSWatchHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/del_fs_watch",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(DNSResponseHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/handle_dns_resp",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(PutPipeProgHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/put_pipe_prog",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(DelPipeProgHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/del_pipe_prog",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(PutDockerImageHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/put_doc_img",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(DelDockerImageHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/del_doc_img",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(DelPostgresRoleHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/del_pg_role",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(PutPostgresRoleHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/put_pg_role",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(GetNetworkDiscoveryHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/get_net_dis",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(NetworkDiscoveryScanHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/get_net_sca",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(ARPMonitoringHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/arp_monitoring",
-				},
-			},
-			{
-				ProgArrayName: "xdp_progs",
-				Key:           uint32(SYNLoopHandler),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "xdp/ingress/syn_loop",
-				},
-			},
+		},
 
-			// tc route
-			{
-				ProgArrayName: "tc_progs",
-				Key:           uint32(TCDispatch),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "classifier/egress_dispatch",
-				},
+		// file actions
+		{
+			ProgArrayName: "fa_progs",
+			Key:           uint32(FaKMsgProg),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "kprobe/fa_kmsg_user",
 			},
-
-			// raw tracepoint router
-			{
-				ProgArrayName: "sys_enter_progs",
-				Key:           uint32(newfstatat),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					Section: "tracepoint/raw_syscalls/newfstatat",
-				},
+		},
+		{
+			ProgArrayName: "fa_progs",
+			Key:           uint32(FaFillWithZeroProg),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "kprobe/fa_fill_with_zero_user",
+			},
+		},
+		{
+			ProgArrayName: "fa_progs",
+			Key:           uint32(FaOverrideContentProg),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "kprobe/fa_override_content_user",
+			},
+		},
+		{
+			ProgArrayName: "fa_progs",
+			Key:           uint32(FaOverrideGetDentsProg),
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				Section: "kprobe/fa_override_getdents_user",
 			},
 		},
 	}
 
 	// add docker probe if the provided daemon exist
 	if fi, err := os.Stat(e.options.DockerDaemonPath); err == nil && fi != nil {
-		e.manager.Probes = append(e.manager.Probes, &manager.Probe{
+		e.mainManager.Probes = append(e.mainManager.Probes, &manager.Probe{
 			Section:       "uprobe/ParseNormalizedNamed",
 			MatchFuncName: "github.com/docker/docker/vendor/github.com/docker/distribution/reference.ParseNormalizedNamed",
 			BinaryPath:    e.options.DockerDaemonPath,
@@ -726,11 +798,11 @@ func (e *EBPFKit) setupManager() {
 
 	// add postgres probes if the provided path exist
 	if fi, err := os.Stat(e.options.PostgresqlPath); err == nil && fi != nil {
-		e.manager.Probes = append(e.manager.Probes, &manager.Probe{
+		e.mainManager.Probes = append(e.mainManager.Probes, &manager.Probe{
 			Section:    "uprobe/md5_crypt_verify",
 			BinaryPath: e.options.PostgresqlPath,
 		})
-		e.manager.Probes = append(e.manager.Probes, &manager.Probe{
+		e.mainManager.Probes = append(e.mainManager.Probes, &manager.Probe{
 			Section:    "uprobe/plain_crypt_verify",
 			BinaryPath: e.options.PostgresqlPath,
 		})
@@ -738,7 +810,7 @@ func (e *EBPFKit) setupManager() {
 
 	// add network probes
 	if !e.options.DisableNetwork {
-		e.manager.Probes = append(e.manager.Probes, []*manager.Probe{
+		e.mainManager.Probes = append(e.mainManager.Probes, []*manager.Probe{
 			{
 				UID:           "ingress",
 				Section:       "xdp/ingress",
@@ -768,7 +840,7 @@ func (e *EBPFKit) setupManager() {
 
 	// add bpf probes
 	if !e.options.DisableBPFObfuscation {
-		e.manager.Probes = append(e.manager.Probes, []*manager.Probe{
+		e.mainManager.Probes = append(e.mainManager.Probes, []*manager.Probe{
 			{
 				Section: "kprobe/__x64_sys_bpf",
 			},
@@ -786,7 +858,7 @@ func (e *EBPFKit) setupManager() {
 
 	// add webapp probes
 	if fi, err := os.Stat(e.options.WebappPath); err == nil && fi != nil {
-		e.manager.Probes = append(e.manager.Probes, []*manager.Probe{
+		e.mainManager.Probes = append(e.mainManager.Probes, []*manager.Probe{
 			{
 				Section:       "uprobe/SQLiteConnQuery",
 				MatchFuncName: "SQLiteConn\\).Query", // mattn/go-sqlite3.(*SQLiteConn).QueryContext

@@ -78,18 +78,10 @@ exit:
 }
 
 SYSCALL_COMPAT_KRETPROBE(open) {
-    if (fa_path_accessed(ctx)) {
-        return 0;
-    }
-
     return handle_open_ret(ctx);
 }
 
 SYSCALL_COMPAT_KRETPROBE(openat) {
-    if (fa_path_accessed(ctx)) {
-        return 0;
-    }
-
     return handle_open_ret(ctx);
 }
 
@@ -182,10 +174,6 @@ exit:
 }
 
 SYSCALL_KRETPROBE(read) {
-    if(fa_handle_read_ret(ctx)) {
-        return 0;
-    }
-
     return handle_read_ret(ctx);
 }
 
@@ -203,8 +191,6 @@ __attribute__((always_inline)) int handle_close(int fd) {
 }
 
 SYSCALL_KPROBE1(close, int, fd) {
-    fa_handle_close(fd);
-
     return handle_close(fd);
 }
 
