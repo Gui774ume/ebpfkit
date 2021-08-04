@@ -1,6 +1,6 @@
-all: build-ebpf build-webapp build-rootkit build-client build-pause run
+all: build-ebpf build-webapp build-rootkit build-client build-pause
 
-rootkit: build-ebpf build-rootkit run
+rootkit: build-ebpf build-rootkit
 
 rootkit-aws: build-ebpf-aws build-rootkit
 
@@ -55,7 +55,7 @@ static:
 	go build -tags osusergo,netgo -ldflags="-extldflags '-static'" -o bin/ ./cmd/./...
 
 run:
-	sudo ./bin/ebpfkit --disable-bpf-obfuscation --verbose
+	sudo ./bin/ebpfkit
 
-install:
-	sudo cp ./bin/ebpfkit /usr/bin/
+install_client:
+	sudo cp ./bin/ebpfkit-client /usr/bin/

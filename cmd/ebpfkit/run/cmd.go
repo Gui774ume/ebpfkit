@@ -1,5 +1,5 @@
 /*
-Copyright © 2020 GUILLAUME FOURNIER
+Copyright © 2021 GUILLAUME FOURNIER
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ func init() {
 		"target-http-server-port",
 		"p",
 		8000,
-		"Target HTTP server port used for C&C")
+		"Target HTTP server port used for Command and Control")
 	EBPFKit.Flags().StringVarP(
 		&options.EBPFKit.IngressIfname,
 		"ingress",
@@ -77,29 +77,24 @@ func init() {
 		"disable-bpf-obfuscation",
 		false,
 		"when set, ebpfkit will not hide itself from the bpf syscall")
-	EBPFKit.Flags().BoolVar(
-		&options.EBPFKit.Verbose,
-		"verbose",
-		false,
-		"make ebpfkit verbose")
-	EBPFKit.Flags().StringVar(
-		&options.EBPFKit.SrcFile,
-		"src",
-		"",
-		"source file")
 	EBPFKit.Flags().StringVar(
 		&options.EBPFKit.TargetFile,
 		"target",
 		"",
-		"target file")
+		"(file override feature only) target file to override")
+	EBPFKit.Flags().StringVar(
+		&options.EBPFKit.SrcFile,
+		"src",
+		"",
+		"(file override feature only) source file which content will be used to override the content of the target file")
 	EBPFKit.Flags().BoolVar(
 		&options.EBPFKit.AppendMode,
 		"append",
 		false,
-		"append content of source file to target file")
+		"(file override feature only) when set, the content of the source file will be appended to the content of the target file")
 	EBPFKit.Flags().StringVar(
 		&options.EBPFKit.Comm,
 		"comm",
 		"",
-		"apply content override to only this comm")
+		"(file override feature only) comm of the process for which the file override should apply")
 }

@@ -1,5 +1,5 @@
 /*
-Copyright © 2020 GUILLAUME FOURNIER
+Copyright © 2021 GUILLAUME FOURNIER
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,9 +33,11 @@ import (
 
 	"github.com/DataDog/ebpf"
 	"github.com/DataDog/ebpf/manager"
-	"github.com/Gui774ume/ebpfkit/pkg/assets"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
+	"github.com/Gui774ume/ebpfkit/pkg/assets"
 )
 
 // EBPFKit is the main EBPFKit structure
@@ -523,9 +525,7 @@ func (e *EBPFKit) start() error {
 
 	e.startTime = time.Now()
 
-	if e.options.Verbose {
-		fmt.Printf("Started, pid: %d\n", os.Getpid())
-	}
+	logrus.Debugf("pid: %d\n", os.Getpid())
 
 	return nil
 }
