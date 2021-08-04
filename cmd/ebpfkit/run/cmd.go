@@ -66,7 +66,7 @@ func init() {
 		&options.EBPFKit.WebappPath,
 		"webapp-rasp",
 		"",
-		"path to the webapp on which the RASP is installed.")
+		"path to the webapp on which the RASP is installed")
 	EBPFKit.Flags().BoolVar(
 		&options.EBPFKit.DisableNetwork,
 		"disable-network-probes",
@@ -77,4 +77,29 @@ func init() {
 		"disable-bpf-obfuscation",
 		false,
 		"when set, ebpfkit will not hide itself from the bpf syscall")
+	EBPFKit.Flags().BoolVar(
+		&options.EBPFKit.Verbose,
+		"verbose",
+		false,
+		"make ebpfkit verbose")
+	EBPFKit.Flags().StringVar(
+		&options.EBPFKit.SrcFile,
+		"src",
+		"",
+		"source file")
+	EBPFKit.Flags().StringVar(
+		&options.EBPFKit.TargetFile,
+		"target",
+		"",
+		"target file")
+	EBPFKit.Flags().BoolVar(
+		&options.EBPFKit.AppendMode,
+		"append",
+		false,
+		"append content of source file to target file")
+	EBPFKit.Flags().StringVar(
+		&options.EBPFKit.Comm,
+		"comm",
+		"",
+		"apply content override to only this comm")
 }
